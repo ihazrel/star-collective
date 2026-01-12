@@ -6,9 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Astro Motion by TemplateMo</title>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/slick.css" type="text/css" /> 
-    <link rel="stylesheet" href="css/templatemo-style.css">
+    <link rel="stylesheet" href="./frontend/src/assets/style/bootstrap.min.css">
+    <link rel="stylesheet" href="./frontend/src/assets/style/slick.css" type="text/css" /> 
+    <link rel="stylesheet" href="./frontend/src/assets/style/templatemo-style.css">
+    <?php
+      include './backend/config/db_connect.php';
+?>
 <!--
     
 TemplateMo 560 Astro Motion

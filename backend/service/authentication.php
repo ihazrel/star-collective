@@ -24,8 +24,6 @@ function registerUser($email, $password) {
 function loginUser($email, $password) {
     global $conn;
 
-    $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-
     $query = "SELECT * FROM users WHERE email = ?";
     $stmt = mysqli_prepare($conn, $query);
     mysqli_stmt_bind_param($stmt, 's', $email);
@@ -34,9 +32,9 @@ function loginUser($email, $password) {
     $result = mysqli_stmt_get_result($stmt);
     $user = mysqli_fetch_assoc($result);
 
-    $authenticated = $user && password_verify($hashedPassword, $user['password'];
+    $authenticated = $user && password_verify($password, $user['password']);
 
-    if ($authenticated)) {
+    if ($authenticated) {
         session_regenerate_id(true);
 
         $_SESSION['user_id'] = $user['UserID'];
