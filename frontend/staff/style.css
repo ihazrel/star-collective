@@ -1,0 +1,85 @@
+body {
+    font-family: 'Source Sans Pro', sans-serif;
+    background-color: #0f110f;
+    color: #ffffff;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background-color: #121512;
+    border-right: 1px solid #242b24;
+    position: sticky;
+    top: 0;
+}
+
+.nav-link {
+    color: #adb5bd;
+    transition: all 0.3s;
+    font-size: 0.95rem;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: #3CCDFF; /* Using a blue tint for Staff to distinguish from Admin Green */
+    background-color: rgba(60, 205, 255, 0.1);
+}
+
+.card {
+    background-color: #1a1f1a;
+    border: 1px solid #2d352d;
+    color: white;
+    border-radius: 12px;
+}
+
+.stat-card {
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.text-accent {
+    color: #99FF66;
+}
+
+.bg-accent {
+    background-color: #99FF66;
+}
+
+.table {
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.table-dark {
+    --bs-table-bg: #1a1f1a;
+}
+
+.form-control, .form-select {
+    background-color: #242b24;
+    border: 1px solid #3d473d;
+    color: white;
+}
+
+.form-control:focus {
+    background-color: #242b24;
+    color: white;
+    border-color: #3CCDFF;
+    box-shadow: none;
+}
+
+.btn-accent {
+    background-color: #99FF66;
+    color: #000;
+    font-weight: 600;
+}
+
+.btn-accent:hover {
+    background-color: #82e655;
+    color: #000;
+}
+
+section {
+    padding-top: 20px;
+    scroll-margin-top: 20px;
+}
