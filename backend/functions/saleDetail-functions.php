@@ -1,5 +1,5 @@
 <?php
-require_once '../config/db_connect.php';
+require_once __DIR__ . '/../config/db_connect.php';
 
 function createSaleDetails($saleId, $itemId, $quantity, $finalPrice) {
     global $conn;

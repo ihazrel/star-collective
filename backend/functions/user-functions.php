@@ -1,5 +1,5 @@
 <?php
-require_once '../config/db_connect.php';
+require_once __DIR__ . '/../config/db_connect.php';
 
 function createUser($name, $email, $phone, $password) {
     global $conn;
@@ -79,12 +79,12 @@ function editUser($userId, $name, $email, $phone) {
     }
 }
 
-function editPassword($userId, $newPassword) {
+function EditPassword($userId, $newPassword) {
     global $conn;
 
     $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT); // Hash the new password
 
-    $query = "UPDATE users SET Password = :password WHERE UserID = :userId";
+    $query = "UPDATE USERS SET Password = :password WHERE ID = :userId";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':password', $hashedPassword);
     oci_bind_by_name($stmt, ':userId', $userId);

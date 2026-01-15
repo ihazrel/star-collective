@@ -1,5 +1,5 @@
 <?php
-require_once '../config/db_connect.php';
+require_once __DIR__ . '/../config/db_connect.php';
 
 function createStaff($position, $salary, $dateHired, $managedBy) {
     global $conn;

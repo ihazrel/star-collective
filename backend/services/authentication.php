@@ -33,7 +33,7 @@ function LoginUser($email, $password) {
 
     $user = oci_fetch_assoc($stmt);
 
-    $authenticated = $user && $password === $user['PASSWORD']; // For demonstration; replace with password_verify in production);
+    $authenticated = $user && password_verify($password, $user['PASSWORD']); // For demonstration; replace with password_verify in production);
 
     if ($authenticated) {
         session_regenerate_id(true);

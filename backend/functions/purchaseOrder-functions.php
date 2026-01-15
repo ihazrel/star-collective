@@ -1,5 +1,5 @@
 <?php
-require_once '../config/db_connect.php';
+require_once __DIR__ . '/../config/db_connect.php';
 
 function createPurchaseOrder($vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice) {
     global $conn;
