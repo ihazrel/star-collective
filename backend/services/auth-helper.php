@@ -42,4 +42,13 @@ function requireStaff() {
 function requireVendor() {
     requireRole('vendor');
 }
+
+function SetSessionVariables($user) {
+    $_SESSION['user_id'] = $user['UserID'];
+    $_SESSION['user_name'] = $user['Name'];
+    $_SESSION['user_email'] = $user['Email'];
+    $_SESSION['user_phone'] = $user['PhoneNumber'];
+    $_SESSION['user_role'] = $user['Role'];
+    $_SESSION['logged_in'] = true;
+}
 ?>

@@ -1,3 +1,37 @@
+<?php
+// Start the session
+session_start();
+
+require_once '../backend/services/authentication.php';
+
+$IsAlert = false;
+
+// If the user is already logged in, redirect to admin dashboard
+if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+    header("Location: admin-dashboard.php");
+    exit();
+}
+
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+  $IsAlert = false;
+
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
+
+    $result = LoginUser($email, $password);
+
+    if ($result['status'] && $_SESSION['user_role'] === 'Staff') {
+        header("Location: admin-dashboard.php");
+        exit();
+    } else {
+        $IsAlert = true;
+        $error_message = "Invalid email or password.";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -30,6 +64,12 @@
 </head>
 
 <body>
+  <?php
+    if ($IsAlert) {
+        echo '<div class="alert alert-danger text-center" role="alert">' . htmlspecialchars($error_message) . '</div>';
+    }
+  ?>
+
   <video autoplay muted loop id="bg-video">
     <source src="src/assets/video/gfp-astro-timelapse.mp4" type="video/mp4">
   </video>
@@ -57,9 +97,9 @@
               
               <form action="#" method="POST" class="contact-form">
                   <div class="input-group tm-mb-30">
-                      <input name="username" type="text"
+                      <input name="email" type="email"
                           class="form-control rounded-0 border-top-0 border-end-0 border-start-0"
-                          placeholder="Username" required>
+                          placeholder="Email" required>
                   </div>
                   <div class="input-group tm-mb-30">
                       <input name="password" type="password"
