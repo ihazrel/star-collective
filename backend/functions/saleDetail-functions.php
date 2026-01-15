@@ -4,32 +4,40 @@ require_once '../config/db_connect.php';
 function createSaleDetails($saleId, $itemId, $quantity, $finalPrice) {
     global $conn;
     
-    $query = "INSERT INTO saledetails (SaleID, ItemID, Quantity, FinalPrice) VALUES (?, ?, ?, ?)";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'iiid', $saleId, $itemId, $quantity, $finalPrice);
+    $query = "INSERT INTO saledetails (SaleID, ItemID, Quantity, FinalPrice) VALUES (:1, :2, :3, :4)";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $saleId);
+    oci_bind_by_name($stmt, ':2', $itemId);
+    oci_bind_by_name($stmt, ':3', $quantity);
+    oci_bind_by_name($stmt, ':4', $finalPrice);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Sale details created successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to create sale details.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to create sale details: ' . $error['message']];
     }
 }
 
 function getSaleDetailsBySaleId($saleId) {
     global $conn;
 
-    $query = "SELECT SaleDetailID, SaleID, ItemID, Quantity, FinalPrice FROM saledetails WHERE SaleID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $saleId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $query = "SELECT SaleDetailID, SaleID, ItemID, Quantity, FinalPrice FROM saledetails WHERE SaleID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $saleId);
+    $result = oci_execute($stmt);
 
     $saleDetails = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $saleDetails[] = $row;
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $saleDetails[] = $row;
+        }
     }
+    oci_free_statement($stmt);
 
     return $saleDetails;
 }
@@ -37,32 +45,42 @@ function getSaleDetailsBySaleId($saleId) {
 function editSaleDetails($saleDetailId, $saleId, $itemId, $quantity, $finalPrice) {
     global $conn;
 
-    $query = "UPDATE saledetails SET SaleID = ?, ItemID = ?, Quantity = ?, FinalPrice = ? WHERE SaleDetailID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'iiidi', $saleId, $itemId, $quantity, $finalPrice, $saleDetailId);
+    $query = "UPDATE saledetails SET SaleID = :1, ItemID = :2, Quantity = :3, FinalPrice = :4 WHERE SaleDetailID = :5";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $saleId);
+    oci_bind_by_name($stmt, ':2', $itemId);
+    oci_bind_by_name($stmt, ':3', $quantity);
+    oci_bind_by_name($stmt, ':4', $finalPrice);
+    oci_bind_by_name($stmt, ':5', $saleDetailId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Sale details updated successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to update sale details.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update sale details: ' . $error['message']];
     }
 }
 
 function deleteSaleDetails($saleDetailId) {
     global $conn;
 
-    $query = "DELETE FROM saledetails WHERE SaleDetailID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $saleDetailId);
+    $query = "DELETE FROM saledetails WHERE SaleDetailID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $saleDetailId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Sale details deleted successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to delete sale details.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to delete sale details: ' . $error['message']];
     }
 }
 ?>

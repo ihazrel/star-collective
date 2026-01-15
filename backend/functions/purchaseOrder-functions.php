@@ -4,16 +4,23 @@ require_once '../config/db_connect.php';
 function createPurchaseOrder($vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice) {
     global $conn;
     
-    $query = "INSERT INTO purchase_orders (VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice) VALUES (?, ?, ?, ?, ?)";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'iissi', $vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice);
+    $query = "INSERT INTO purchase_orders (VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice) VALUES (:1, :2, :3, :4, :5)";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $vendorId);
+    oci_bind_by_name($stmt, ':2', $staffId);
+    oci_bind_by_name($stmt, ':3', $orderDateTime);
+    oci_bind_by_name($stmt, ':4', $invoiceNumber);
+    oci_bind_by_name($stmt, ':5', $totalPrice);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Purchase order created successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to create purchase order.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to create purchase order: ' . $error['message']];
     }
 }
 
@@ -21,12 +28,16 @@ function getAllPurchaseOrders() {
     global $conn;
 
     $query = "SELECT PurchaseOrderID, VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice FROM purchase_orders";
-    $result = mysqli_query($conn, $query);
+    $stmt = oci_parse($conn, $query);
+    $result = oci_execute($stmt);
 
     $purchaseOrders = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $purchaseOrders[] = $row;
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $purchaseOrders[] = $row;
+        }
     }
+    oci_free_statement($stmt);
 
     return $purchaseOrders;
 }
@@ -34,44 +45,60 @@ function getAllPurchaseOrders() {
 function getPurchaseOrderById($purchaseOrderId) {
     global $conn;
 
-    $query = "SELECT PurchaseOrderID, VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice FROM purchase_orders WHERE PurchaseOrderID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $purchaseOrderId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $query = "SELECT PurchaseOrderID, VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice FROM purchase_orders WHERE PurchaseOrderID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $purchaseOrderId);
+    $result = oci_execute($stmt);
 
-    return mysqli_fetch_assoc($result);
+    $row = null;
+    if ($result) {
+        $row = oci_fetch_assoc($stmt);
+    }
+    oci_free_statement($stmt);
+
+    return $row;
 }
 
 function editPurchaseOrder($purchaseOrderId, $vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice) {
     global $conn;
 
-    $query = "UPDATE purchase_orders SET VendorID = ?, StaffID = ?, OrderDateTime = ?, InvoiceNumber = ?, TotalPrice = ? WHERE PurchaseOrderID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'iissii', $vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice, $purchaseOrderId);
+    $query = "UPDATE purchase_orders SET VendorID = :1, StaffID = :2, OrderDateTime = :3, InvoiceNumber = :4, TotalPrice = :5 WHERE PurchaseOrderID = :6";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $vendorId);
+    oci_bind_by_name($stmt, ':2', $staffId);
+    oci_bind_by_name($stmt, ':3', $orderDateTime);
+    oci_bind_by_name($stmt, ':4', $invoiceNumber);
+    oci_bind_by_name($stmt, ':5', $totalPrice);
+    oci_bind_by_name($stmt, ':6', $purchaseOrderId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Purchase order updated successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to update purchase order.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update purchase order: ' . $error['message']];
     }
 }
 
 function deletePurchaseOrder($purchaseOrderId) {
     global $conn;
 
-    $query = "DELETE FROM purchase_orders WHERE PurchaseOrderID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $purchaseOrderId);
+    $query = "DELETE FROM purchase_orders WHERE PurchaseOrderID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $purchaseOrderId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Purchase order deleted successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to delete purchase order.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to delete purchase order: ' . $error['message']];
     }
 }
 ?>

@@ -4,16 +4,22 @@ require_once '../config/db_connect.php';
 function createStaff($position, $salary, $dateHired, $managedBy) {
     global $conn;
     
-    $query = "INSERT INTO staff (Position, Salary, DateHired, ManagedBy) VALUES (?, ?, ?, ?)";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'sdis', $position, $salary, $dateHired, $managedBy);
+    $query = "INSERT INTO staff (Position, Salary, DateHired, ManagedBy) VALUES (:1, :2, :3, :4)";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $position);
+    oci_bind_by_name($stmt, ':2', $salary);
+    oci_bind_by_name($stmt, ':3', $dateHired);
+    oci_bind_by_name($stmt, ':4', $managedBy);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Staff created successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to create staff.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to create staff: ' . $error['message']];
     }
 }
 
@@ -21,12 +27,16 @@ function getAllStaff() {
     global $conn;
 
     $query = "SELECT StaffID, Position, Salary, DateHired, ManagedBy FROM staff";
-    $result = mysqli_query($conn, $query);
+    $stmt = oci_parse($conn, $query);
+    $result = oci_execute($stmt);
 
     $staffList = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $staffList[] = $row;
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $staffList[] = $row;
+        }
     }
+    oci_free_statement($stmt);
 
     return $staffList;
 }
@@ -34,28 +44,40 @@ function getAllStaff() {
 function getStaffById($staffId) {
     global $conn;
 
-    $query = "SELECT StaffID, Position, Salary, DateHired, ManagedBy FROM staff WHERE StaffID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $staffId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $query = "SELECT StaffID, Position, Salary, DateHired, ManagedBy FROM staff WHERE StaffID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $staffId);
+    $result = oci_execute($stmt);
 
-    return mysqli_fetch_assoc($result);
+    $row = null;
+    if ($result) {
+        $row = oci_fetch_assoc($stmt);
+    }
+    oci_free_statement($stmt);
+
+    return $row;
 }
 
 function editStaff($staffId, $position, $salary, $dateHired, $managedBy) {
     global $conn;
 
-    $query = "UPDATE staff SET Position = ?, Salary = ?, DateHired = ?, ManagedBy = ? WHERE StaffID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'sdisi', $position, $salary, $dateHired, $managedBy, $staffId);
+    $query = "UPDATE staff SET Position = :1, Salary = :2, DateHired = :3, ManagedBy = :4 WHERE StaffID = :5";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $position);
+    oci_bind_by_name($stmt, ':2', $salary);
+    oci_bind_by_name($stmt, ':3', $dateHired);
+    oci_bind_by_name($stmt, ':4', $managedBy);
+    oci_bind_by_name($stmt, ':5', $staffId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
+        oci_free_statement($stmt);
         return ['status' => true, 'message' => 'Staff updated successfully.'];
     } else {
-        return ['status' => false, 'message' => 'Failed to update staff.'];
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update staff: ' . $error['message']];
     }
 }
 ?>
