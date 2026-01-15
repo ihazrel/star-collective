@@ -22,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $result = LoginUser($email, $password);
 
-    if ($result['status'] && $_SESSION['user_role'] === 'Staff') {
+    if ($result['status'] && UserIsStaff()) {
         header("Location: admin-dashboard.php");
         exit();
     } else {

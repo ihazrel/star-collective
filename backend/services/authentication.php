@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db_connect.php';
+require_once 'auth-helper.php';
 
 function registerUser($email, $password) {
     global $conn;
@@ -30,7 +31,7 @@ function LoginUser($email, $password) {
     oci_bind_by_name($stmt, ':email', $email);
     oci_execute($stmt);
 
-    $user = oci_fetch_array($stmt);
+    $user = oci_fetch_assoc($stmt);
 
     $authenticated = $user && $password === $user['PASSWORD']; // For demonstration; replace with password_verify in production);
 

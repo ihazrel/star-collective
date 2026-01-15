@@ -6,11 +6,15 @@ function createUser($name, $email, $phone, $password) {
     
     $password = password_hash($password, PASSWORD_BCRYPT); // Hash the password
 
-    $query = "INSERT INTO users (Name, Email, PhoneNumber, Password) VALUES (?, ?, ?, ?)";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'ssss', $name, $email, $phone, $password);
+    $query = "INSERT INTO users (Name, Email, PhoneNumber, Password) VALUES (:name, :email, :phone, :password)";
+    $stmt = oci_parse($conn, $query);
+    
+    oci_bind_by_name($stmt, ':name', $name);
+    oci_bind_by_name($stmt, ':email', $email);
+    oci_bind_by_name($stmt, ':phone', $phone);
+    oci_bind_by_name($stmt, ':password', $password);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
         return ['status' => true, 'message' => 'User created successfully.'];
@@ -23,12 +27,13 @@ function getAllUsers() {
     global $conn;
 
     $query = "SELECT UserID, Name, Email, PhoneNumber FROM users";
-    $result = mysqli_query($conn, $query);
+    $result = oci_parse($conn, $query);
 
     $users = [];
-    while ($row = mysqli_fetch_assoc($result)) {
+    while ($row = oci_fetch_assoc($result)) {
         $users[] = $row;
     }
+    oci_free_statement($result);
 
     return $users;
 }
@@ -36,35 +41,36 @@ function getAllUsers() {
 function getUserById($userId) {
     global $conn;
 
-    $query = "SELECT UserID, Name, Email, PhoneNumber FROM users WHERE UserID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $userId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $query = "SELECT UserID, Name, Email, PhoneNumber FROM users WHERE UserID = :userId";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':userId', $userId);
+    oci_execute($stmt);
 
-    return mysqli_fetch_assoc($result);
+    return oci_fetch_assoc($stmt);
 }
 
 function getUserByEmail($email) {
     global $conn;
 
-    $query = "SELECT * FROM users WHERE Email = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 's', $email);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $query = "SELECT * FROM users WHERE Email = :email";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':email', $email);
+    oci_execute($stmt);
 
-    return mysqli_fetch_assoc($result);
+    return oci_fetch_assoc($stmt);
 }
 
 function editUser($userId, $name, $email, $phone) {
     global $conn;
 
-    $query = "UPDATE users SET Name = ?, Email = ?, PhoneNumber = ? WHERE UserID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'sssi', $name, $email, $phone, $userId);
+    $query = "UPDATE users SET Name = :name, Email = :email, PhoneNumber = :phone WHERE UserID = :userId";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':name', $name);
+    oci_bind_by_name($stmt, ':email', $email);
+    oci_bind_by_name($stmt, ':phone', $phone);
+    oci_bind_by_name($stmt, ':userId', $userId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
         return ['status' => true, 'message' => 'User updated successfully.'];
@@ -78,11 +84,12 @@ function editPassword($userId, $newPassword) {
 
     $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT); // Hash the new password
 
-    $query = "UPDATE users SET Password = ? WHERE UserID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'si', $hashedPassword, $userId);
+    $query = "UPDATE users SET Password = :password WHERE UserID = :userId";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':password', $hashedPassword);
+    oci_bind_by_name($stmt, ':userId', $userId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
         return ['status' => true, 'message' => 'Password updated successfully.'];
@@ -94,11 +101,11 @@ function editPassword($userId, $newPassword) {
 function deleteUser($userId) {
     global $conn;
 
-    $query = "DELETE FROM users WHERE UserID = ?";
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, 'i', $userId);
+    $query = "DELETE FROM users WHERE UserID = :userId";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':userId', $userId);
 
-    $result = mysqli_stmt_execute($stmt);
+    $result = oci_execute($stmt);
 
     if ($result) {
         return ['status' => true, 'message' => 'User deleted successfully.'];
