@@ -2,7 +2,7 @@
 // Start the session
 session_start();
 
-require_once '../backend/services/authentication.php';
+require_once __DIR__ . '/../../backend/services/authentication.php';
 
 $IsAlert = false;
 
@@ -24,6 +24,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($result['status'] && UserIsStaff()) {
         header("Location: admin-dashboard.php");
+        exit();
+
+    } else if ($result['status'] && UserIsCustomer()) {
+        header("Location: customer-dashboard.php");
         exit();
     } else {
         $IsAlert = true;

@@ -6,7 +6,7 @@ function createUser($name, $email, $phone, $password) {
     
     $password = password_hash($password, PASSWORD_BCRYPT); // Hash the password
 
-    $query = "INSERT INTO users (Name, Email, PhoneNumber, Password) VALUES (:name, :email, :phone, :password)";
+    $query = "INSERT INTO users (NAME, EMAIL, PHONENUMBER, Password) VALUES (:name, :email, :phone, :password)";
     $stmt = oci_parse($conn, $query);
     
     oci_bind_by_name($stmt, ':name', $name);
@@ -26,8 +26,9 @@ function createUser($name, $email, $phone, $password) {
 function getAllUsers() {
     global $conn;
 
-    $query = "SELECT UserID, Name, Email, PhoneNumber FROM users";
+    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER FROM users";
     $result = oci_parse($conn, $query);
+    oci_execute($result);
 
     $users = [];
     while ($row = oci_fetch_assoc($result)) {
@@ -41,7 +42,7 @@ function getAllUsers() {
 function getUserById($userId) {
     global $conn;
 
-    $query = "SELECT UserID, Name, Email, PhoneNumber FROM users WHERE UserID = :userId";
+    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER FROM users WHERE ID = :userId";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':userId', $userId);
     oci_execute($stmt);
@@ -49,10 +50,10 @@ function getUserById($userId) {
     return oci_fetch_assoc($stmt);
 }
 
-function getUserByEmail($email) {
+function getUserByEMAIL($email) {
     global $conn;
 
-    $query = "SELECT * FROM users WHERE Email = :email";
+    $query = "SELECT * FROM users WHERE EMAIL = :email";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':email', $email);
     oci_execute($stmt);
@@ -63,7 +64,7 @@ function getUserByEmail($email) {
 function editUser($userId, $name, $email, $phone) {
     global $conn;
 
-    $query = "UPDATE users SET Name = :name, Email = :email, PhoneNumber = :phone WHERE UserID = :userId";
+    $query = "UPDATE users SET NAME = :name, EMAIL = :email, PHONENUMBER = :phone WHERE ID = :userId";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':name', $name);
     oci_bind_by_name($stmt, ':email', $email);
@@ -101,7 +102,7 @@ function EditPassword($userId, $newPassword) {
 function deleteUser($userId) {
     global $conn;
 
-    $query = "DELETE FROM users WHERE UserID = :userId";
+    $query = "DELETE FROM users WHERE ID = :userId";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':userId', $userId);
 
