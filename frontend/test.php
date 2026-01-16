@@ -3,9 +3,22 @@ require_once __DIR__ . '/../backend/functions/item-functions.php';
 
 $items = getAllItems();
 
-function refresh_data() {
+$column_sort = [
+    'NAME' => 'Name',
+    'PRICE' => 'Price',
+    'CURRENTSTOCK' => 'Current Stock',
+    'LASTUPDATEDATETIME' => 'Updated On'
+];
+
+function refresh_data($column, $sort_direction) {
     global $items;
-    $items = getAllItems();
+
+    if ($column && $sort_direction) {
+        $items = getAllItems($column, $sort_direction);
+        return;
+    } else {
+        $items = getAllItems();
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -18,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentStock = $_POST['currentStock'] ?? '';
 
             $result = createItem($name, $price, $currentStock);
-            refresh_data();
+            refresh_data(null, null);
 
             if ($result['status']) {
                 header('Location: ' . $_SERVER['PHP_SELF'] . '?added=1');
@@ -35,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentStock = $_POST['currentStock'] ?? '';
 
             $result = editItem($id, $name, $price, $currentStock);
-            refresh_data();
+            refresh_data(null, null);
 
             if ($result['status']) {
                 header('Location: ' . $_SERVER['PHP_SELF'] . '?updated=1');
@@ -49,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $_POST['id'] ?? '';
 
             $result = deleteItem($id);
-            refresh_data();
+            refresh_data(null, null);
 
             if ($result['status']) {
                 header('Location: ' . $_SERVER['PHP_SELF'] . '?deleted=1');
@@ -58,10 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorMessage = $result['message'];
             }
             break;
-    }
-    
-    header('Location: ' . $_SERVER['PHP_SELF']);
-    exit;
+    exit;}
 }
 ?>
 <!DOCTYPE html>
@@ -85,6 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
         input[type="text"] { width: 100%; padding: 8px; margin: 10px 0; box-sizing: border-box; }
         .modal-footer { margin-top: 20px; text-align: right; }
+        .clickable-cell { cursor: pointer; transition: background-color 0.2s; }
+        .clickable-cell:hover { background-color: #e7f3ff; }
+        .clickable-header { cursor: pointer; transition: background-color 0.2s; }
+        .clickable-header:hover { background-color: #d0e0f0; }
     </style>
 </head>
 <body>

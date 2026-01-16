@@ -42,7 +42,7 @@ function getAllUsers() {
 function getUserById($userId) {
     global $conn;
 
-    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER FROM users WHERE ID = :userId";
+    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER, ROLE FROM users WHERE ID = :userId";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':userId', $userId);
     oci_execute($stmt);

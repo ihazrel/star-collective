@@ -23,7 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $result = LoginUser($email, $password);
 
     if ($result['status'] && UserIsStaff()) {
-        header("Location: admin-dashboard.php");
+        header("Location: dashboard.view.php");
         exit();
 
     } else if ($result['status'] && UserIsCustomer()) {
@@ -46,9 +46,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <title>Star Collective - Admin Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="src/assets/style/bootstrap.min.css">
-  <link rel="stylesheet" href="src/assets/style/slick.css" type="text/css" />
-  <link rel="stylesheet" href="src/assets/style/templatemo-style.css">
+  <link rel="stylesheet" href="../src/assets/style/bootstrap.min.css">
+  <link rel="stylesheet" href="../src/assets/style/slick.css" type="text/css" />
+  <link rel="stylesheet" href="../src/assets/style/templatemo-style.css">
 
   <style>
     .login-container-wrapper {
