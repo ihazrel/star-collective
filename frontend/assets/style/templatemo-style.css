@@ -664,3 +664,8 @@ border-top-color: #f9c922; /* Chrome, Opera 15+, Safari 5+ */ animation: spin 1.
 /* JavaScript Turned Off */
 .no-js #loader-wrapper { display: none; }
 /*============ Preloader ends ==================================*/
+
+
+html::-webkit-scrollbar {
+display: none;
+}
