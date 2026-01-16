@@ -26,7 +26,7 @@ function createUser($name, $email, $phone, $password) {
 function getAllUsers() {
     global $conn;
 
-    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER FROM users";
+    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER, ROLE FROM users";
     $result = oci_parse($conn, $query);
     oci_execute($result);
 

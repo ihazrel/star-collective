@@ -42,6 +42,7 @@ if ($_POST['login'] ?? false) {
             <tr style="background-color: #f0f0f0;">
                 <th style="padding: 10px; text-align: left;">Name</th>
                 <th style="padding: 10px; text-align: left;">Email</th>
+                <th style="padding: 10px; text-align: left;">Role</th>
                 <th style="padding: 10px; text-align: left;">Action</th>
             </tr>
         </thead>
@@ -50,6 +51,7 @@ if ($_POST['login'] ?? false) {
                 <tr>
                     <td style="padding: 10px;"><?= htmlspecialchars($user['NAME']) ?></td>
                     <td style="padding: 10px;"><?= htmlspecialchars($user['EMAIL']) ?></td>
+                    <td style="padding: 10px;"><?= htmlspecialchars($user['ROLE']) ?></td>
                     <td style="padding: 10px;">
                         <form method="POST" style="display: inline;">
                             <input type="hidden" name="user_id" value="<?= $user['ID'] ?>">

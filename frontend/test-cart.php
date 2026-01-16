@@ -52,6 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .container { max-width: 1400px; margin: 0 auto; }
         .page-wrapper { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
         h1 { margin-bottom: 30px; color: #333; grid-column: 1 / -1; }
+        .top-bar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; color: #555; gap: 10px; }
+        .top-bar .user-name { font-weight: bold; }
         .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; grid-column: 1 / -1; }
         .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
         .product-card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -80,7 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </style>
 </head>
 <body>
+
+
     <div class="container">
+        <div class="top-bar">
+            <span>Welcome,</span>
+            <span class="user-name"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Guest') ?></span>
+        </div>
         <h1>🛍️ Shop</h1>
         
         <?php if (isset($_SESSION['order_confirmed'])): ?>
@@ -114,19 +122,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div class="cart-item">
                         <div class="cart-item-info">
                             <strong><?= htmlspecialchars($cart_items['NAME']) ?></strong><br>
-                            Qty: <?= $cart_items['QUANTITY'] ?> × $<?= number_format($cart_items['TOTAL_PRICE'], 2) ?>
+                            Qty: <?= $cart_items['QUANTITY'] ?> × $<?= number_format($cart_items['PRICE'], 2) ?>
                         </div>
                         <div class="cart-item-total">
-                            $<?= number_format($cart_items['TOTAL_PRICE'] * $cart_items['QUANTITY'], 2) ?>
+                            $<?= number_format($cart_items['TOTAL_BY_ITEM'], 2) ?>
                         </div>
                         <form method="POST" style="display: inline;">
                             <input type="hidden" name="action" value="remove">
-                            <input type="hidden" name="product_id" value="<?= $item['product']['id'] ?>">
+                            <input type="hidden" name="product_id" value="<?= $cart_items['ITEMID'] ?>">
                             <button type="submit" class="remove-btn">Remove</button>
                         </form>
                     </div>
                 <?php endforeach; ?>
-                <div class="cart-total">Total: $<?= number_format($cart_total, 2) ?></div>
+                <div class="cart-total">Total: $<?= number_format($cart[0]['TOTAL_PRICE'] ?? 0, 2) ?></div>
                 <form method="POST">
                     <input type="hidden" name="action" value="confirm">
                     <button type="submit" class="confirm-btn">✅ Confirm Order</button>

@@ -48,7 +48,18 @@ function deleteCartItem($cartId) {
 function getCartItemsByCustomer($CustId) {
     global $conn;
 
-    $query = "SELECT ITEM.NAME, SUM(ITEM.PRICE) OVER() AS TOTAL_PRICE, CARTITEM.QUANTITY FROM CARTITEM JOIN ITEM ON CARTITEM.ITEMID = ITEM.ITEMID WHERE CARTITEM.CUSTOMERID = :1";
+    $query = "SELECT 
+                    cartitem.itemid,
+                    item.name,
+                    item.price,
+                    sum(cartitem.quantity) AS QUANTITY,
+                    sum(cartitem.quantity * item.price) AS TOTAL_BY_ITEM,
+                    sum(sum(cartitem.quantity * item.price)) over() AS TOTAL_PRICE
+                from cartitem
+                join item on cartitem.itemid = item.itemid
+                where customerid = :1
+                group by cartitem.itemid, item.price, item.name";
+
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $CustId);
 
