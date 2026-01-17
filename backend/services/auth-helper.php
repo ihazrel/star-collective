@@ -12,6 +12,10 @@ function UserIsStaff() {
     return hasRole('Staff');
 }
 
+function UserIsAdmin() {
+    return hasRole('Admin');
+}
+
 function UserIsCustomer() {
     return hasRole('Customer');
 }

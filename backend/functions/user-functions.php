@@ -1,19 +1,27 @@
 <?php
 require_once __DIR__ . '/../config/db_connect.php';
 
-function createUser($name, $email, $phone, $password) {
+function createUser($name, $email, $phone, $password, $role) {
     global $conn;
+    
+    // Check if email already exists
+    $existingUser = getUserByEmail($email);
+    if ($existingUser) {
+        return ['status' => false, 'message' => 'Email already exists.'];
+    }
     
     $password = password_hash($password, PASSWORD_BCRYPT); // Hash the password
 
-    $query = "INSERT INTO users (NAME, EMAIL, PHONENUMBER, Password) VALUES (:name, :email, :phone, :password)";
+    
+
+    $query = "INSERT INTO users (NAME, EMAIL, PHONENUMBER, Password, ROLE) VALUES (:name, :email, :phone, :password, :role)";
     $stmt = oci_parse($conn, $query);
     
     oci_bind_by_name($stmt, ':name', $name);
     oci_bind_by_name($stmt, ':email', $email);
     oci_bind_by_name($stmt, ':phone', $phone);
     oci_bind_by_name($stmt, ':password', $password);
-
+    oci_bind_by_name($stmt, ':role', $role);
     $result = oci_execute($stmt);
 
     if ($result) {
@@ -23,18 +31,25 @@ function createUser($name, $email, $phone, $password) {
     }
 }
 
-function getAllUsers() {
+function getAllUsers($role = null) {
     global $conn;
 
-    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER, ROLE FROM users";
-    $result = oci_parse($conn, $query);
-    oci_execute($result);
+    $query = "SELECT ID, NAME, EMAIL, PHONENUMBER, ROLE FROM users ";
+    if ($role !== null) {
+        $query .= "WHERE LOWER(ROLE) = :role";
+    }
+    $stmt = oci_parse($conn, $query);
+
+    if ($role !== null) {
+        oci_bind_by_name($stmt, ':role', $role);
+    }
+    oci_execute($stmt);
 
     $users = [];
-    while ($row = oci_fetch_assoc($result)) {
+    while ($row = oci_fetch_assoc($stmt)) {
         $users[] = $row;
     }
-    oci_free_statement($result);
+    oci_free_statement($stmt);
 
     return $users;
 }
@@ -50,7 +65,7 @@ function getUserById($userId) {
     return oci_fetch_assoc($stmt);
 }
 
-function getUserByEMAIL($email) {
+function getUserByEmail($email) {
     global $conn;
 
     $query = "SELECT * FROM users WHERE EMAIL = :email";
@@ -114,4 +129,14 @@ function deleteUser($userId) {
         return ['status' => false, 'message' => 'Failed to delete user.'];
     }
 }
+
+function getAllStaffs() {
+
+    $admins = getAllUsers('admin');
+    $staffs = getAllUsers('staff');
+
+    $users = array_merge($admins, $staffs);
+
+    return $users;
+} 
 ?>

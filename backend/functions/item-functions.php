@@ -102,4 +102,53 @@ function deleteItem($itemId) {
         return ['status' => false, 'message' => 'Failed to delete item: ' . $error['message']];
     }
 }
+
+//business rules
+function getItemWithStockBelow($threshold) {
+    global $conn;
+    
+    $query = "SELECT ITEMID, NAME, PRICE, CURRENTSTOCK FROM ITEM WHERE CURRENTSTOCK < :1 ORDER BY CURRENTSTOCK ASC";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $threshold);
+    $result = oci_execute($stmt);
+    
+    $items = [];
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $items[] = $row;
+        }
+    }
+    oci_free_statement($stmt);
+    
+    return $items;
+}   
+
+function updateStock($itemId, $increment) {
+    global $conn;
+
+    $item = getItemById($itemId);
+    if (!$item) {
+        return ['status' => false, 'message' => 'Item not found.'];
+    }
+    $newStock = $item['CURRENTSTOCK'] + $increment;
+    if ($newStock < 0) {
+        return ['status' => false, 'message' => 'Stock cannot be negative.'];
+    }
+    
+    $query = "UPDATE ITEM SET CURRENTSTOCK = :1, LASTUPDATEDATETIME = SYSDATE WHERE ITEMID = :2";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $newStock);
+    oci_bind_by_name($stmt, ':2', $itemId);
+
+    $result = oci_execute($stmt);
+
+    if ($result) {
+        oci_free_statement($stmt);
+        return ['status' => true, 'message' => 'Stock updated successfully.'];
+    } else {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update stock: ' . $error['message']];
+    }
+}
 ?>

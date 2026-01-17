@@ -12,6 +12,9 @@ CREATE TABLE Cart (
     CONSTRAINT cartitem_fk FOREIGN KEY (ItemId) REFERENCES Item(ItemId)
 );
 
+ALTER TABLE PURCHASEORDER
+ADD STATUS VARCHAR2(255);
+
 ALTER TABLE CARTITEM 
 ADD QUANTITY NUMBER;
 
@@ -20,9 +23,24 @@ RENAME TO CartItem;
 
 select * from cartitem;
 select * from users;
-select * from item;
+select * from staff;
+select * from item order by name;
+select * from vendor;
+select * from purchaseorder;
+select * from purchaseorderdetail;
+
+select last_insert_id();
+
+SELECT ID, NAME, EMAIL, PHONENUMBER, ROLE FROM users WHERE ROLE = 'staff' OR ROLE = 'admin';
+
+delete from purchaseorder
+where purchaseorderid in (221,222);
+
+update users
+set role = LOWER(role);
 
 desc cartitem;
+desc purchaseorder;
 
 SELECT CARTITEM.ITEMID, SUM(ITEM.PRICE) OVER() AS TOTAL_PRICE FROM CARTITEM JOIN ITEM ON CARTITEM.ITEMID = ITEM.ITEMID WHERE CARTITEM.CUSTOMERID = 1;
 

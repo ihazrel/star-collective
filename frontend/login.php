@@ -1,4 +1,47 @@
-<?php include('includes/header.php'); ?>
+<?php 
+include('includes/header.php'); 
+
+// Start the session
+session_start();
+
+require_once __DIR__ . '/../backend/services/authentication.php';
+
+$IsAlert = false;
+
+// If the user is already logged in, redirect to admin dashboard
+if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+    header("Location: admin-dashboard.php");
+    exit();
+}
+
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+  $IsAlert = false;
+
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
+
+    $result = LoginUser($email, $password);
+
+    if ($result['status'] && UserIsAdmin()) {
+        header("Location: /frontend/admin/index.php");
+        exit();
+
+    } else if ($result['status'] && UserIsStaff()) {
+        header("Location: /frontend/staff/index.php");
+        exit();
+
+    } else if ($result['status'] && UserIsCustomer()) {
+        header("Location: /frontend/index.php");
+        exit();
+    } else {
+        $IsAlert = true;
+        $error_message = "Invalid email or password.";
+    }
+}
+
+?>
 
 <style>
     .login-container-wrapper {
@@ -23,12 +66,12 @@
                 <h2 class="text-white">Login</h2>
             </div>
             
-            <form action="../backend/auth/login_process.php" method="POST" class="contact-form" autocomplete="off">
+            <form action="#" method="POST" class="contact-form" autocomplete="off">
                 
                 <div class="input-group tm-mb-30">
-                    <input name="username" type="text"
+                    <input name="email" type="email"
                         class="form-control rounded-0 border-top-0 border-end-0 border-start-0"
-                        placeholder="Username" 
+                        placeholder="Email" 
                         autocomplete="off"
                         required>
                 </div>

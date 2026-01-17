@@ -21,10 +21,15 @@ function createVendor($companyName, $address, $dateJoined) {
     }
 }
 
-function getAllVendors() {
+function getAllVendors($sortColumn = null, $sortDirection = 'ASC') {
     global $conn;
 
-    $query = "SELECT VendorID, CompanyName, Address, DateJoined FROM vendors";
+    $query = "SELECT VENDORID, COMPANYNAME, ADDRESS, DATEJOIN FROM VENDOR";
+    if ($sortColumn) {
+        $query .= " ORDER BY " . $sortColumn . " " . ($sortDirection === 'DESC' ? 'DESC' : 'ASC');
+    } else {
+        $query .= " ORDER BY VENDORID ASC";
+    }
     $stmt = oci_parse($conn, $query);
     $result = oci_execute($stmt);
 
