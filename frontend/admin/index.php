@@ -310,6 +310,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <form method="POST" id="poForm">
                             <input type="hidden" name="action" value="createPO">
                             <div class="mb-3">
+
+                                <!-- Vendor Selection -->
                                 <label class="form-label small text-secondary">Select Vendor</label>
                                 <select class="form-select" id="vendorSelect" name="vendor">
                                     <option value="">Select Vendor</option>
@@ -319,6 +321,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 </select>
                             </div>
                             <div class="mb-3">
+
+                                <!-- Item Selection -->
                                 <label class="form-label small text-secondary">Item & Quantity</label>
                                 <div class="input-group mb-3">
                                     <select class="form-select" id="itemSelect" name="item">
@@ -343,74 +347,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             <button type="button" class="btn btn-accent w-100 mb-3" id="submitPOBtn">Create Purchase Order</button>
                         </form>
 
-                        <script>
-                        document.getElementById('addItemBtn').addEventListener('click', function() {
-                            const selectItem = document.getElementById('itemSelect');
-                            const quantity = document.getElementById('itemQuantity');
-                            const itemId = selectItem.value;
-                            const itemText = selectItem.options[selectItem.selectedIndex].text;
-                            
-                            if (!itemId) return;
-                            
-                            const itemDiv = document.createElement('div');
-                            itemDiv.className = 'input-group input-group-sm mb-2';
-                            itemDiv.innerHTML = `
-                                <input type="hidden" name="itemId" value="${itemId}">
-                                <span class="input-group-text bg-transparent border-secondary text-white">${itemText}</span>
-                                <span class="input-group-text bg-transparent border-secondary text-white">${quantity.value}</span>
-                                <button class="btn btn-outline-danger btn-sm" type="button">−</button>
-                            `;
-                            itemDiv.querySelector('button').addEventListener('click', () => itemDiv.remove());
-                            document.getElementById('poItems').appendChild(itemDiv);
-                        });
-
-                        document.getElementById('submitPOBtn').addEventListener('click', function() {
-                            const poItems = document.getElementById('poItems');
-                            const items = poItems.querySelectorAll('.input-group-sm');
-                            const vendorId = document.getElementById('vendorSelect').value;
-                            const totalPrice = document.getElementById('poForm').querySelector('input[name="totalPrice"]').value;
-                            
-                            if (items.length === 0) {
-                                alert('Please add items to the purchase order');
-                                return;
-                            }
-
-                            const vendorInput = document.createElement('input');
-                            vendorInput.type = 'hidden';
-                            vendorInput.name = 'vendorId';
-                            vendorInput.value = vendorId;
-                            document.getElementById('poForm').appendChild(vendorInput);
-                            
-                            const totalPriceInput = document.createElement('input');
-                            totalPriceInput.type = 'hidden';
-                            totalPriceInput.name = 'totalPrice';
-                            totalPriceInput.value = totalPrice;
-                            document.getElementById('poForm').appendChild(totalPriceInput);
-                            
-                            items.forEach((item, index) => {
-                                const texts = item.querySelectorAll('.input-group-text');
-
-                                const itemText = texts[0].textContent.trim();
-                                const quantity  = texts[1].textContent.trim();
-
-                                const itemId = item.querySelector('input[name="itemId"]').value;
-                                const itemInput = document.createElement('input');
-                                itemInput.type = 'hidden';
-                                itemInput.name = `poItems[${index}][id]`;
-                                itemInput.value = itemId;
-                                document.getElementById('poForm').appendChild(itemInput);
-                                
-                                const qtyInput = document.createElement('input');
-                                qtyInput.type = 'hidden';
-                                qtyInput.name = `poItems[${index}][quantity]`;
-                                qtyInput.value = quantity;
-                                document.getElementById('poForm').appendChild(qtyInput);
-                            });
-
-                            document.getElementById('poForm').submit();
-                        });
-                        </script>
-                        </script>
                         <hr class="border-secondary">
                         <p class="small text-secondary mb-2">Recent Purchase Orders</p>
                         <div class="list-group list-group-flush bg-transparent">
@@ -419,9 +355,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <small><?php echo htmlspecialchars($po['INVOICENO']); ?> - <?php echo htmlspecialchars($po['COMPANYNAME']); ?> <span class="float-end text-warning">Pending</span></small>
                             </div>
                             <?php endforeach; ?>
-                            <div class="list-group-item bg-transparent text-white border-secondary px-0 py-1">
-                                <small>PO #8819 - Adidas <span class="float-end text-success">Completed</span></small>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -541,6 +474,76 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Procurement PO Item Addition
+document.getElementById('addItemBtn').addEventListener('click', function() {
+    const selectItem = document.getElementById('itemSelect');
+    const quantity = document.getElementById('itemQuantity');
+    const itemId = selectItem.value;
+    const itemText = selectItem.options[selectItem.selectedIndex].text;
+    
+    if (!itemId) return;
+    
+    // Create item entry
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'input-group input-group-sm mb-2';
+    itemDiv.innerHTML = `
+        <input type="hidden" name="itemId" value="${itemId}">
+        <span class="input-group-text bg-transparent border-secondary text-white">${itemText}</span>
+        <span class="input-group-text bg-transparent border-secondary text-white">${quantity.value}</span>
+        <button class="btn btn-outline-danger btn-sm" type="button">−</button>
+    `;
+    itemDiv.querySelector('button').addEventListener('click', () => itemDiv.remove());
+    document.getElementById('poItems').appendChild(itemDiv);
+});
+
+// Submit Purchase Order Form
+document.getElementById('submitPOBtn').addEventListener('click', function() {
+    const poItems = document.getElementById('poItems');
+    const items = poItems.querySelectorAll('.input-group-sm');
+    const vendorId = document.getElementById('vendorSelect').value;
+    const totalPrice = document.getElementById('poForm').querySelector('input[name="totalPrice"]').value;
+    
+    if (items.length === 0) {
+        alert('Please add items to the purchase order');
+        return;
+    }
+
+    const vendorInput = document.createElement('input');
+    vendorInput.type = 'hidden';
+    vendorInput.name = 'vendorId';
+    vendorInput.value = vendorId;
+    document.getElementById('poForm').appendChild(vendorInput);
+    
+    const totalPriceInput = document.createElement('input');
+    totalPriceInput.type = 'hidden';
+    totalPriceInput.name = 'totalPrice';
+    totalPriceInput.value = totalPrice;
+    document.getElementById('poForm').appendChild(totalPriceInput);
+    
+    items.forEach((item, index) => {
+        const texts = item.querySelectorAll('.input-group-text');
+
+        const itemText = texts[0].textContent.trim();
+        const quantity  = texts[1].textContent.trim();
+
+        const itemId = item.querySelector('input[name="itemId"]').value;
+        const itemInput = document.createElement('input');
+        itemInput.type = 'hidden';
+        itemInput.name = `poItems[${index}][id]`;
+        itemInput.value = itemId;
+        document.getElementById('poForm').appendChild(itemInput);
+        
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'hidden';
+        qtyInput.name = `poItems[${index}][quantity]`;
+        qtyInput.value = quantity;
+        document.getElementById('poForm').appendChild(qtyInput);
+    });
+
+    document.getElementById('poForm').submit();
+});
+
 </script>
 </body>
 </html>

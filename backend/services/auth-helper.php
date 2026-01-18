@@ -5,7 +5,7 @@ function UserIsLoggedIn() {
 }
 
 function hasRole($role) {
-    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === $role;
+    return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === strtolower($role);
 }
 
 function UserIsStaff() {

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,9 +33,20 @@
                     </li>
                     <hr class="text-secondary">
                     <li class="nav-item mt-2">
-                        <a class="btn btn-outline-danger w-100 btn-sm" href="../index.php">Logout System</a>
+                        <button class="btn btn-outline-danger w-100 btn-sm" onclick="logout()">Logout System</button>
                     </li>
                 </ul>
             </div>
         </nav>
 
+        <script>
+            function logout() {
+                fetch('logout.php', {
+                    method: 'POST'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.href = '../login.php';
+                    }
+                });
+            }
+        </script>
