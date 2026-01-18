@@ -5,8 +5,6 @@ require_once __DIR__ . '/../backend/functions/item-functions.php';
 require_once __DIR__ . '/../backend/functions/cartItem-functions.php';
 require_once __DIR__ . '/../backend/functions/sale-functions.php';
 
-session_start();
-
 $itemList = getItemsForCollections();
 $cart = getCartItemsByCustomer($_SESSION['user_id'] ?? 0);
 

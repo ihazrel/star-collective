@@ -1,3 +1,9 @@
+<?php
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,6 +16,26 @@
   <link rel="stylesheet" href="assets/style/bootstrap.min.css">
   <link rel="stylesheet" href="assets/style/slick.css" type="text/css" />
   <link rel="stylesheet" href="assets/style/templatemo-style.css">
+  <style>
+    .nav-item.user-welcome .nav-link {
+      color: #ffd700 !important;
+      font-weight: 400;
+      position: relative;
+      padding-left: 30px;
+    }
+    
+    .nav-item.user-welcome .nav-link::before {
+      content: "✨";
+      position: absolute;
+      left: 8px;
+      animation: twinkle 2s infinite;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
 </head>
 
 <body>
@@ -48,10 +74,21 @@
                     <a class="nav-link" href="contact.php">Contact</a>
                     <div class="circle"></div>
                   </li>
+                  <?php if (isset($_SESSION['user_name']) && !empty($_SESSION['user_name'])): ?>
+                  <li class="nav-item user-welcome">
+                    <a class="nav-link" href="#">Hello, <?php echo htmlspecialchars($_SESSION['user_name']); ?></a>
+                    <div class="circle"></div>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="logout.php">Logout</a>
+                    <div class="circle"></div>
+                  </li>
+                  <?php else: ?>
                   <li class="nav-item">
                     <a class="nav-link" href="login.php">Login</a>
                     <div class="circle"></div>
                   </li>
+                  <?php endif; ?>
                 </ul>
               </div>
             </nav>
