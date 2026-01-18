@@ -109,12 +109,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $newStatus = $_POST['newStatus'] ?? '';
 
         $result = updatePurchaseOrderStatus($purchaseOrderId, $newStatus);
-        if ($result['status']) {
-            $_SESSION['flash_message'] = 'Purchase Order status has been updated successfully.'; header('Location: ' . $_SERVER['PHP_SELF']);
-            exit;
+
+        if (is_array($result) && isset($result['status'])) {
+            if ($result['status']) {
+                $_SESSION['flash_message'] = 'Purchase Order status has been updated successfully.';
+                header('Location: ' . $_SERVER['PHP_SELF']);
+                exit;
+            } else {
+                $errorMessage = $result['message'] ?? 'Unknown error';
+            }
         } else {
-            $errorMessage = $result['message'];
+            $errorMessage = 'Update function did not return expected result.';
         }
+
     }
 }
 ?>

@@ -266,6 +266,8 @@ function updatePurchaseOrderStatus($purchaseOrderId, $newStatus) {
                 return ['status' => true, 'message' => 'Purchase order status updated successfully.'];
             }
         }
+    } else {
+        return ['status' => true, 'message' => 'Purchase order status updated successfully.'];
     }
 }
 ?>
