@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/db_connect.php';
 function createSaleDetails($saleId, $itemId, $quantity, $finalPrice) {
     global $conn;
     
-    $query = "INSERT INTO saledetails (SaleID, ItemID, Quantity, FinalPrice) VALUES (:1, :2, :3, :4)";
+    $query = "INSERT INTO SALEDETAIL (SaleID, ItemID, Quantity, FinalPrice) VALUES (:1, :2, :3, :4)";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     oci_bind_by_name($stmt, ':2', $itemId);
@@ -26,7 +26,7 @@ function createSaleDetails($saleId, $itemId, $quantity, $finalPrice) {
 function getSaleDetailsBySaleId($saleId) {
     global $conn;
 
-    $query = "SELECT SaleDetailID, SaleID, ItemID, Quantity, FinalPrice FROM saledetails WHERE SaleID = :1";
+    $query = "SELECT SaleDetailID, SaleID, ItemID, Quantity, FinalPrice FROM SALEDETAIL WHERE SaleID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     $result = oci_execute($stmt);
@@ -45,7 +45,7 @@ function getSaleDetailsBySaleId($saleId) {
 function editSaleDetails($saleDetailId, $saleId, $itemId, $quantity, $finalPrice) {
     global $conn;
 
-    $query = "UPDATE saledetails SET SaleID = :1, ItemID = :2, Quantity = :3, FinalPrice = :4 WHERE SaleDetailID = :5";
+    $query = "UPDATE SALEDETAIL SET SaleID = :1, ItemID = :2, Quantity = :3, FinalPrice = :4 WHERE SaleDetailID = :5";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     oci_bind_by_name($stmt, ':2', $itemId);
@@ -68,7 +68,7 @@ function editSaleDetails($saleDetailId, $saleId, $itemId, $quantity, $finalPrice
 function deleteSaleDetails($saleDetailId) {
     global $conn;
 
-    $query = "DELETE FROM saledetails WHERE SaleDetailID = :1";
+    $query = "DELETE FROM SALEDETAIL WHERE SaleDetailID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleDetailId);
 

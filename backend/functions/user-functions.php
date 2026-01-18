@@ -24,6 +24,14 @@ function createUser($name, $email, $phone, $password, $role) {
     oci_bind_by_name($stmt, ':role', $role);
     $result = oci_execute($stmt);
 
+    // If role is customer, also insert into customer table
+    if (strtolower($role) === 'customer') {
+        $customerQuery = "INSERT INTO customer (USER_ID) VALUES (:userId)";
+        $customerStmt = oci_parse($conn, $customerQuery);
+        oci_bind_by_name($customerStmt, ':userId', $userId);
+        oci_execute($customerStmt);
+    }
+
     if ($result) {
         return ['status' => true, 'message' => 'User created successfully.'];
     } else {

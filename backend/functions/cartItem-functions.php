@@ -49,7 +49,8 @@ function getCartItemsByCustomer($CustId) {
     global $conn;
 
     $query = "SELECT 
-                    cartitem.itemid,
+                    cartitem.cartid AS CARTID,
+                    cartitem.itemid AS ITEMID,
                     item.name,
                     item.price,
                     sum(cartitem.quantity) AS QUANTITY,
@@ -58,7 +59,7 @@ function getCartItemsByCustomer($CustId) {
                 from cartitem
                 join item on cartitem.itemid = item.itemid
                 where customerid = :1
-                group by cartitem.itemid, item.price, item.name";
+                group by cartitem.cartid, cartitem.itemid, item.price, item.name";
 
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $CustId);
@@ -72,5 +73,24 @@ function getCartItemsByCustomer($CustId) {
 
     oci_free_statement($stmt);
     return $cartItems;
+}
+
+function deleteAllCartItemsByCustomer($CustId) {
+    global $conn;
+
+    $query = "DELETE FROM CARTITEM WHERE CUSTOMERID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $CustId);
+
+    $result = oci_execute($stmt);
+
+    if ($result) {
+        oci_free_statement($stmt);
+        return ['status' => true, 'message' => 'All cart items deleted successfully.'];
+    } else {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to delete cart items: ' . $error['message']];
+    }
 }
 ?>

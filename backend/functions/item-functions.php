@@ -151,4 +151,22 @@ function updateStock($itemId, $increment) {
         return ['status' => false, 'message' => 'Failed to update stock: ' . $error['message']];
     }
 }
+
+function getItemsForCollections() {
+    global $conn;
+    
+    $query = "SELECT ITEMID AS ID, NAME, PRICE FROM ITEM ORDER BY LASTUPDATEDATETIME DESC";
+    $stmt = oci_parse($conn, $query);
+    $result = oci_execute($stmt);
+    
+    $items = [];
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $items[] = $row;
+        }
+    }
+    oci_free_statement($stmt);
+    
+    return $items;
+}
 ?>

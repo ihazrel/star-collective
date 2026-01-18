@@ -1,15 +1,16 @@
 <?php
 require_once __DIR__ . '/../config/db_connect.php';
+require_once __DIR__ . '/cartItem-functions.php';
+require_once __DIR__ . '/saleDetail-functions.php';
 
-function createSale($saleDateTime, $totalPrice, $customerId, $staffId) {
+function createSale( $totalPrice, $customerId, $staffId) {
     global $conn;
     
-    $query = "INSERT INTO sales (SaleDateTime, TotalPrice, CustomerID, StaffID) VALUES (:1, :2, :3, :4)";
+    $query = "INSERT INTO SALE (SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID) VALUES (SYSDATE, :1, :2, :3)";
     $stmt = oci_parse($conn, $query);
-    oci_bind_by_name($stmt, ':1', $saleDateTime);
-    oci_bind_by_name($stmt, ':2', $totalPrice);
-    oci_bind_by_name($stmt, ':3', $customerId);
-    oci_bind_by_name($stmt, ':4', $staffId);
+    oci_bind_by_name($stmt, ':1', $totalPrice);
+    oci_bind_by_name($stmt, ':2', $customerId);
+    oci_bind_by_name($stmt, ':3', $staffId);
 
     $result = oci_execute($stmt);
 
@@ -26,7 +27,7 @@ function createSale($saleDateTime, $totalPrice, $customerId, $staffId) {
 function getAllSales() {
     global $conn;
 
-    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM sales";
+    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE ORDER BY SaleDateTime DESC";
     $stmt = oci_parse($conn, $query);
     $result = oci_execute($stmt);
 
@@ -44,7 +45,7 @@ function getAllSales() {
 function getSaleById($saleId) {
     global $conn;
 
-    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM sales WHERE SaleID = :1";
+    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE WHERE SaleID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     $result = oci_execute($stmt);
@@ -58,10 +59,27 @@ function getSaleById($saleId) {
     return $row;
 }
 
+function getLatestSaleId() {
+    global $conn;
+
+    $query = "SELECT MAX(SALEID) AS LATEST_SALE_ID FROM SALE";
+    $stmt = oci_parse($conn, $query);
+    $result = oci_execute($stmt);
+
+    $latestSaleId = null;
+    if ($result) {
+        $row = oci_fetch_assoc($stmt);
+        $latestSaleId = $row['LATEST_SALE_ID'];
+    }
+    oci_free_statement($stmt);
+
+    return $latestSaleId;
+}
+
 function editSale($saleId, $saleDateTime, $totalPrice, $customerId, $staffId) {
     global $conn;
 
-    $query = "UPDATE sales SET SaleDateTime = :1, TotalPrice = :2, CustomerID = :3, StaffID = :4 WHERE SaleID = :5";
+    $query = "UPDATE SALE SET SaleDateTime = :1, TotalPrice = :2, CustomerID = :3, StaffID = :4 WHERE SaleID = :5";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleDateTime);
     oci_bind_by_name($stmt, ':2', $totalPrice);
@@ -84,7 +102,7 @@ function editSale($saleId, $saleDateTime, $totalPrice, $customerId, $staffId) {
 function deleteSale($saleId) {
     global $conn;
 
-    $query = "DELETE FROM sales WHERE SaleID = :1";
+    $query = "DELETE FROM SALE WHERE SaleID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
 
@@ -97,6 +115,53 @@ function deleteSale($saleId) {
         $error = oci_error($stmt);
         oci_free_statement($stmt);
         return ['status' => false, 'message' => 'Failed to delete sale: ' . $error['message']];
+    }
+}
+
+//business rules
+function getSalesByCustomer($customerId) {
+    global $conn;
+
+    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE WHERE CustomerID = :1 ORDER BY SaleDateTime DESC";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $customerId);
+    $result = oci_execute($stmt);
+
+    $sales = [];
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $sales[] = $row;
+        }
+    }
+    oci_free_statement($stmt);
+
+    return $sales;
+}
+
+function createSalesFromCart($customerId, $staffId) {
+    global $conn;
+
+    $cartItems = getCartItemsByCustomer($customerId);
+    $totalPrice = 0;
+
+    foreach ($cartItems as $item) {
+        $totalPrice += $item['TOTAL_BY_ITEM'];
+    }
+
+    createSale($totalPrice, $customerId, $staffId);
+    $saleId = getLatestSaleId();
+
+    foreach ($cartItems as $item) {
+        createSaleDetails($saleId, $item['ITEMID'], $item['QUANTITY'], $item['TOTAL_BY_ITEM']);
+        updateStock($item['ITEMID'], -$item['QUANTITY']);
+    }
+
+    deleteAllCartItemsByCustomer($customerId);
+
+    if ($saleId) {
+        return ['status' => true, 'message' => 'Sale created from cart successfully.', 'sale_id' => $saleId];
+    } else {
+        return ['status' => false, 'message' => 'Failed to create sale from cart.'];
     }
 }
 ?>
