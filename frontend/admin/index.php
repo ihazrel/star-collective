@@ -161,6 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }, 3000);
 </script>
 <?php endif; ?>
+
 <style>
     .tab-pane.fade:not(.show) {
         display: none !important;

@@ -14,7 +14,7 @@ function createUser($name, $email, $phone, $password, $role) {
 
     
 
-    $query = "INSERT INTO users (NAME, EMAIL, PHONENUMBER, Password, ROLE) VALUES (:name, :email, :phone, :password, :role)";
+    $query = "INSERT INTO users (NAME, EMAIL, PHONENUMBER, PASSWORD, ROLE) VALUES (:name, :email, :phone, :password, :role)";
     $stmt = oci_parse($conn, $query);
     
     oci_bind_by_name($stmt, ':name', $name);

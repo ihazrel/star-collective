@@ -1,19 +1,12 @@
 <?php
 require_once __DIR__ . '/../config/db_connect.php';
-require_once 'auth-helper.php';
+require_once __DIR__ . '/auth-helper.php';
+require_once __DIR__ . '/../functions/user-functions.php';
 
-function registerUser($email, $password) {
+function registerUser($name, $email, $password, $role) {
     global $conn;
 
-    require_once '../functions/user-functions.php';
-
-    $existingUser = getUserByEmail($email);
-
-    if ($existingUser) {
-        return ['status' => false, 'message' => 'Email already registered.'];
-    }
-
-    $result = createUser(null, $email, null, $password);
+    $result = createUser($name, $email, null, $password, $role);
 
     if ($result['status']) {
         return ['status' => true, 'message' => 'Registration successful.'];

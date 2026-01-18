@@ -5,12 +5,13 @@ include('includes/header.php');
 session_start();
 
 require_once __DIR__ . '/../backend/services/authentication.php';
+require_once __DIR__ . '/../backend/services/auth-helper.php';
 
 $IsAlert = false;
 
 // If the user is already logged in, redirect to admin dashboard
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
-    header("Location: admin-dashboard.php");
+if (UserIsLoggedIn() && UserIsAdmin()) {
+    header("Location: /frontend/admin/index.php");
     exit();
 }
 
@@ -42,6 +43,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 
 ?>
+
+<!-- Success and Error Banners -->
+<?php if (isset($_SESSION['flash_message'])): ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert" id="successBanner" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; width: 85%;">
+    <strong>Success!</strong> <?php echo $_SESSION['flash_message']; unset($_SESSION['flash_message']); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<script>
+    setTimeout(function() {
+        const banner = document.getElementById('successBanner');
+        if (banner) {
+            banner.classList.remove('show');
+            banner.addEventListener('transitionend', function() {
+                banner.remove();
+            });
+        }
+    }, 3000);
+</script>
+<?php endif; ?>
+<?php if (isset($errorMessage)): ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert" id="errorBanner" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; width: 85%;">
+    <strong>Error!</strong> <?php echo htmlspecialchars($errorMessage); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<script>
+    setTimeout(function() {
+        const banner = document.getElementById('errorBanner');
+        if (banner) {
+            banner.classList.remove('show');
+            banner.addEventListener('transitionend', function() {
+                banner.remove();
+            });
+        }
+    }, 3000);
+</script>
+<?php endif; ?>
 
 <style>
     .login-container-wrapper {
