@@ -10,7 +10,11 @@ $lowStockItems = getItemWithStockBelow(20);
 $users = getAllStaffs();
 $itemStockUpdate = getAllItems('CURRENTSTOCK', 'ASC');
 $vendors = getAllVendors();
+$purchaseOrdersList = getAllPurchaseOrders();
 $latestPurchaseOrders = getLatestPurchaseOrder();
+
+$poDetailsList;
+$currPurchaseOrder;
 
 
 $roleFilter = isset($_POST['roleFilter']) ? trim($_POST['roleFilter']) : '';
@@ -39,6 +43,8 @@ function filterUsersByRole($role) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    
+
     if ($_POST['action'] === 'addStaff') {
 
         $name = $_POST['name'] ?? '';
@@ -83,6 +89,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $errorMessage = $result['message'];
         }
+    } elseif ($_POST['action'] === 'viewPODetails') {
+        global $poDetailsList, $currPurchaseOrder;
+
+        $purchaseOrderId = $_POST['purchaseOrderId'] ?? '';
+
+        $poDetailsList = getPurchaseOrderDetails($purchaseOrderId);
+        if ($poDetailsList['status']) {
+            // Store details in session or a temporary variable to be used in the modal
+            $_SESSION['po_details'] = $poDetailsList['data'];
+        } else {
+            $errorMessage = $poDetailsList['message'];
+        }
+
+        $currPurchaseOrder = getPurchaseOrderById($purchaseOrderId);
+    } elseif ($_POST['action'] === 'updatePOStatus') {
+
+        $purchaseOrderId = $_POST['purchaseOrderId'] ?? '';
+        $newStatus = $_POST['newStatus'] ?? '';
+
+        $result = updatePurchaseOrderStatus($purchaseOrderId, $newStatus);
+        if ($result['status']) {
+            $_SESSION['flash_message'] = 'Purchase Order status has been updated successfully.'; header('Location: ' . $_SERVER['PHP_SELF']);
+            exit;
+        } else {
+            $errorMessage = $result['message'];
+        }
     }
 }
 ?>
@@ -122,6 +154,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }, 3000);
 </script>
 <?php endif; ?>
+<style>
+    .tab-pane.fade:not(.show) {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+    .tab-pane.fade.show {
+        display: block !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+</style>
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
             
@@ -307,54 +351,129 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <div class="col-lg-5" id="procurement">
                     <div class="card p-4 h-100">
                         <h4 class="mb-4">Procurement & Vendors</h4>
-                        <form method="POST" id="poForm">
-                            <input type="hidden" name="action" value="createPO">
-                            <div class="mb-3">
+                        
+                        <!-- Nav Tabs -->
+                        <ul class="nav nav-tabs mb-4" id="procurementTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="poListTab" data-bs-toggle="tab" data-bs-target="#poListContent" type="button" role="tab">All Purchase Orders</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="poFormTab" data-bs-toggle="tab" data-bs-target="#poFormContent" type="button" role="tab">Create PO</button>
+                            </li>
+                        </ul>
 
-                                <!-- Vendor Selection -->
-                                <label class="form-label small text-secondary">Select Vendor</label>
-                                <select class="form-select" id="vendorSelect" name="vendor">
-                                    <option value="">Select Vendor</option>
-                                    <?php foreach ($vendors as $vendor): ?>
-                                        <option value="<?php echo htmlspecialchars($vendor['VENDORID']); ?>"><?php echo htmlspecialchars($vendor['COMPANYNAME']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="mb-3">
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="procurementTabContent">
+                            <!-- Tab 1: All Purchase Orders Listing -->
+                            <div class="tab-pane fade show active" id="poListContent" role="tabpanel" style="display: block;">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice</th>
+                                                <th>Vendor</th>
+                                                <th>Total</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="poTableBody">
+                                            <?php 
+                                                $poPage = isset($_GET['poPage']) ? max(1, (int)$_GET['poPage']) : 1;
+                                                $poLimit = 10;
+                                                $poOffset = ($poPage - 1) * $poLimit;
+                                                $totalPO = count($purchaseOrdersList);
+                                                $totalPOPages = max(1, ceil($totalPO / $poLimit));
+                                                $paginatedPO = array_slice($purchaseOrdersList, $poOffset, $poLimit);
+                                            ?>
+                                            <?php foreach ($paginatedPO as $po): ?>
+                                            <tr class="po-row"
+                                                role="button"
+                                                tabindex="0"
+                                                data-po-id="<?php echo htmlspecialchars($po['PURCHASEORDERID']); ?>"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#poDetailsModal">
 
-                                <!-- Item Selection -->
-                                <label class="form-label small text-secondary">Item & Quantity</label>
-                                <div class="input-group mb-3">
-                                    <select class="form-select" id="itemSelect" name="item">
-                                        <option value="">Select Item</option>
-                                        <?php foreach ($itemStockUpdate as $item): ?>
-                                            <option value="<?php echo htmlspecialchars($item['ITEMID']); ?>">
-                                                <?php echo htmlspecialchars($item['NAME']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <input type="number" class="form-control" id="itemQuantity" name="quantity" min="1" value="1" placeholder="Qty">
-                                    <button class="btn btn-accent" type="button" id="addItemBtn">Add</button>
+                                                <td class="p-1"><?php echo htmlspecialchars($po['INVOICENO']); ?></td>
+                                                <td class="p-1"><?php echo htmlspecialchars($po['COMPANYNAME']); ?></td>
+                                                <td class="p-1">RM<?php echo number_format($po['TOTALPRICE'], 2); ?></td>
+                                                <td class="p-1">
+                                                    <?php
+                                                    $statusClass = match(strtolower($po['STATUS'])) {
+                                                        'pending' => 'bg-warning text-dark',
+                                                        'completed' => 'bg-success',
+                                                        'cancelled' => 'bg-danger',
+                                                        default => 'bg-secondary'
+                                                    };
+                                                    ?>
+                                                    <span class="badge <?php echo $statusClass; ?>">
+                                                        <?php echo ucfirst($po['STATUS']); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div id="poItems" class="bg-secondary bg-opacity-10 rounded p-2">
-                                    <!-- Items will be added here -->
+                                <nav class="mt-3">
+                                    <ul class="pagination">
+                                        <li class="page-item <?php echo $poPage <= 1 ? 'disabled' : ''; ?>">
+                                            <a class="page-link" href="?poPage=<?php echo $poPage - 1; ?>">Previous</a>
+                                        </li>
+                                        <li class="page-item active">
+                                            <span class="page-link">Page <?php echo $poPage; ?> of <?php echo $totalPOPages; ?></span>
+                                        </li>
+                                        <li class="page-item <?php echo $poPage >= $totalPOPages ? 'disabled' : ''; ?>">
+                                            <a class="page-link" href="?poPage=<?php echo $poPage + 1; ?>">Next</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                                <?php if (empty($purchaseOrdersList)): ?>
+                                <div class="alert alert-info text-center" role="alert">
+                                    No purchase orders found. Create one to get started.
                                 </div>
+                                <?php endif; ?>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small text-secondary">Total Price</label>
-                                <input type="number" class="form-control" name="totalPrice" step="0.01" min="0" placeholder="0.00" required>
-                            </div>
-                            <button type="button" class="btn btn-accent w-100 mb-3" id="submitPOBtn">Create Purchase Order</button>
-                        </form>
 
-                        <hr class="border-secondary">
-                        <p class="small text-secondary mb-2">Recent Purchase Orders</p>
-                        <div class="list-group list-group-flush bg-transparent">
-                            <?php foreach ($latestPurchaseOrders as $po): ?>
-                            <div class="list-group-item bg-transparent text-white border-secondary px-0 py-1">
-                                <small><?php echo htmlspecialchars($po['INVOICENO']); ?> - <?php echo htmlspecialchars($po['COMPANYNAME']); ?> <span class="float-end text-warning">Pending</span></small>
+                            <!-- Tab 2: Create Purchase Order Form -->
+                            <div class="tab-pane fade" id="poFormContent" role="tabpanel" style="display: none; opacity: 0; pointer-events: none;">
+                                <form method="POST" id="poForm">
+                                    <input type="hidden" name="action" value="createPO">
+                                    <div class="mb-3">
+                                        <!-- Vendor Selection -->
+                                        <label class="form-label small text-secondary">Select Vendor</label>
+                                        <select class="form-select" id="vendorSelect" name="vendor" required>
+                                            <option value="">Select Vendor</option>
+                                            <?php foreach ($vendors as $vendor): ?>
+                                                <option value="<?php echo htmlspecialchars($vendor['VENDORID']); ?>"><?php echo htmlspecialchars($vendor['COMPANYNAME']); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <!-- Item Selection -->
+                                        <label class="form-label small text-secondary">Item & Quantity</label>
+                                        <div class="input-group mb-3">
+                                            <select class="form-select" id="itemSelect" name="item">
+                                                <option value="">Select Item</option>
+                                                <?php foreach ($itemStockUpdate as $item): ?>
+                                                    <option value="<?php echo htmlspecialchars($item['ITEMID']); ?>">
+                                                        <?php echo htmlspecialchars($item['NAME']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <input type="number" class="form-control" id="itemQuantity" name="quantity" min="1" value="1" placeholder="Qty" required>
+                                            <button class="btn btn-accent" type="button" id="addItemBtn">Add</button>
+                                        </div>
+                                        <div id="poItems" class="bg-secondary bg-opacity-10 rounded p-2">
+                                            <!-- Items will be added here -->
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary">Total Price</label>
+                                        <input type="number" class="form-control" name="totalPrice" step="0.01" min="0" placeholder="0.00" required>
+                                    </div>
+                                    <button type="button" class="btn btn-accent w-100 mb-3" id="submitPOBtn">Create Purchase Order</button>
+                                </form>
                             </div>
-                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -463,6 +582,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
   </div>
 </div>
 
+<!-- Purchase Order Details Modal -->
+<div class="modal fade" id="poDetailsModal" tabindex="-1">
+    <input type="hidden" id="modalPurchaseOrderId" value="">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-accent">Purchase Order Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Invoice Number</p>
+                        <p class="text-white" id="modalInvoiceNo">-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Vendor</p>
+                        <p class="text-white" id="modalVendor">-</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Total Price</p>
+                        <p class="text-white" id="modalTotalPrice">RM-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="text-secondary small">Status</p>
+                                <div>
+                                    <p class="text-white"><span class="badge bg-warning text-dark" id="modalStatus">Pending</span></p>
+                                </div>
+                                <div>
+                                    <form method="POST" id="updateStatusForm">
+                                        <input type="hidden" name="action" value="updatePOStatus">
+                                        <input type="hidden" name="purchaseOrderId" id="modalPurchaseOrderId" value="">
+
+                                        <select class="form-select form-select-sm bg-dark"
+                                                name="newStatus"
+                                                id="modalNewStatus">
+                                            <option value="" disabled selected>Change Status</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                        </select>
+                                    </form>
+                                </div>
+                            </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <hr class="border-secondary">
+                <p class="text-secondary small mb-2">Items Ordered</p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsTable">
+                            <tr><td colspan="2" class="text-center text-secondary">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -533,7 +724,7 @@ document.getElementById('submitPOBtn').addEventListener('click', function() {
         itemInput.name = `poItems[${index}][id]`;
         itemInput.value = itemId;
         document.getElementById('poForm').appendChild(itemInput);
-        
+                                
         const qtyInput = document.createElement('input');
         qtyInput.type = 'hidden';
         qtyInput.name = `poItems[${index}][quantity]`;
@@ -543,6 +734,99 @@ document.getElementById('submitPOBtn').addEventListener('click', function() {
 
     document.getElementById('poForm').submit();
 });
+
+document.querySelectorAll('.po-row').forEach(row => {
+    row.addEventListener('click', () => {
+        document.getElementById('modalPurchaseOrderId').value = row.dataset.poId;
+
+        loadPODetails(row.dataset.poId);
+    });
+});
+
+function loadPODetails(poId) {
+
+    // Reset modal
+    document.getElementById('modalInvoiceNo').textContent = 'Loading...';
+    document.getElementById('modalVendor').textContent = 'Loading...';
+    document.getElementById('modalTotalPrice').textContent = 'Loading...';
+    document.getElementById('modalStatus').textContent = 'Loading...';
+    document.getElementById('modalItemsTable').innerHTML =
+        '<tr><td colspan="2" class="text-center text-secondary">Loading...</td></tr>';
+
+    fetch('po-details.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            purchaseOrderId: poId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById('modalInvoiceNo').textContent = data.invoice;
+        document.getElementById('modalVendor').textContent = data.vendor;
+        document.getElementById('modalTotalPrice').textContent = 'RM' + data.total;
+        document.getElementById('modalStatus').textContent = data.status;
+        document.getElementById('modalStatus').className = 'badge ' + data.statusClass;
+        document.getElementById('modalPurchaseOrderId').value = data.purchaseOrderId;
+
+        let rows = '';
+        data.items.forEach(item => {
+            rows += `<tr>
+                        <td>${item.name}</td>
+                        <td>${item.qty}</td>
+                    </tr>`;
+        });
+
+        document.getElementById('modalItemsTable').innerHTML = rows;
+    });
+}
+
+// Change PO Status
+document.getElementById('modalNewStatus').addEventListener('change', function() {
+    const poId = document.getElementById('modalPurchaseOrderId').value;
+    const newStatus = this.value;
+
+    console.log('DEBUG: PO ID =', poId);
+    console.log('DEBUG: New Status =', newStatus);
+
+    if (!poId) {
+        alert('Error: PO ID is empty!');
+        return;
+    }
+
+    if (!confirm(`Change PO #${poId} to ${newStatus}?`)) {
+        this.value = '';
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = ''; // current page
+
+    // Add inputs
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'updatePOStatus';
+    form.appendChild(actionInput);
+
+    const poInput = document.createElement('input');
+    poInput.type = 'hidden';
+    poInput.name = 'purchaseOrderId';
+    poInput.value = poId;
+    form.appendChild(poInput);
+
+    const statusInput = document.createElement('input');
+    statusInput.type = 'hidden';
+    statusInput.name = 'newStatus';
+    statusInput.value = newStatus;
+    form.appendChild(statusInput);
+
+    document.body.appendChild(form);
+    form.submit();
+});
+
 
 </script>
 </body>

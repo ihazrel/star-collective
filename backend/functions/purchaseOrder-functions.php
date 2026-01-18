@@ -69,7 +69,18 @@ function createPurchaseOrderDetail($purchaseOrderId, $itemId, $quantity) {
 function getAllPurchaseOrders() {
     global $conn;
 
-    $query = "SELECT PurchaseOrderID, VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice FROM purchase_orders";
+    $query =   "SELECT 
+                    PURCHASEORDERID, 
+                    PURCHASEORDER.VENDORID, 
+                    STAFFID, 
+                    ORDERDATETIME, 
+                    INVOICENO, 
+                    COALESCE(TOTALPRICE, 0) AS TOTALPRICE,
+                    STATUS,
+                    VENDOR.COMPANYNAME
+                FROM PURCHASEORDER
+                JOIN VENDOR ON PURCHASEORDER.VENDORID = VENDOR.VENDORID
+                ORDER BY PURCHASEORDERID DESC";
     $stmt = oci_parse($conn, $query);
     $result = oci_execute($stmt);
 
@@ -87,7 +98,7 @@ function getAllPurchaseOrders() {
 function getPurchaseOrderById($purchaseOrderId) {
     global $conn;
 
-    $query = "SELECT PurchaseOrderID, VendorID, StaffID, OrderDateTime, InvoiceNumber, TotalPrice FROM purchase_orders WHERE PurchaseOrderID = :1";
+    $query = "SELECT PURCHASEORDERID, PURCHASEORDER.VENDORID, STAFFID, ORDERDATETIME, INVOICENO, COALESCE(TOTALPRICE, 0) AS TOTALPRICE, COMPANYNAME, STATUS FROM PURCHASEORDER JOIN VENDOR ON PURCHASEORDER.VENDORID = VENDOR.VENDORID WHERE PURCHASEORDERID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $purchaseOrderId);
     $result = oci_execute($stmt);
@@ -132,10 +143,38 @@ function getLatestPurchaseOrder() {
     return $latestPurchaseOrders;
 }
 
+function getPurchaseOrderDetails($purchaseOrderId) {
+    global $conn;
+
+    $query =   "SELECT 
+                    POD.PODETAILID,
+                    POD.PURCHASEORDERID,
+                    POD.ITEMID,
+                    POD.QUANTITY,
+                    IT.NAME AS ITEMNAME,
+                    IT.PRICE AS ITEMPRICE
+                FROM PURCHASEORDERDETAIL POD
+                JOIN ITEM IT ON POD.ITEMID = IT.ITEMID
+                WHERE POD.PURCHASEORDERID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $purchaseOrderId);
+    $result = oci_execute($stmt);
+
+    $details = [];
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $details[] = $row;
+        }
+    }
+    oci_free_statement($stmt);
+
+    return $details;
+}
+
 function editPurchaseOrder($purchaseOrderId, $vendorId, $staffId, $orderDateTime, $invoiceNumber, $totalPrice) {
     global $conn;
 
-    $query = "UPDATE purchase_orders SET VendorID = :1, StaffID = :2, OrderDateTime = :3, InvoiceNumber = :4, TotalPrice = :5 WHERE PurchaseOrderID = :6";
+    $query = "UPDATE PURCHASEORDER SET VENDORID = :1, STAFFID = :2, ORDERDATETIME = :3, INVOICENO = :4, TOTALPRICE = :5 WHERE PURCHASEORDERID = :6";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $vendorId);
     oci_bind_by_name($stmt, ':2', $staffId);
@@ -159,7 +198,7 @@ function editPurchaseOrder($purchaseOrderId, $vendorId, $staffId, $orderDateTime
 function deletePurchaseOrder($purchaseOrderId) {
     global $conn;
 
-    $query = "DELETE FROM purchase_orders WHERE PurchaseOrderID = :1";
+    $query = "DELETE FROM PURCHASEORDER WHERE PURCHASEORDERID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $purchaseOrderId);
 
@@ -186,5 +225,47 @@ function createInvoiceNumber() {
     oci_free_statement($stmt);
 
     return $row['INVOICENO'] ?? null;
+}
+
+function updatePurchaseOrderStatus($purchaseOrderId, $newStatus) {
+    global $conn;
+
+    $query = "UPDATE PURCHASEORDER SET STATUS = :1 WHERE PURCHASEORDERID = :2";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $newStatus);
+    oci_bind_by_name($stmt, ':2', $purchaseOrderId);
+
+    $result = oci_execute($stmt);
+
+    if (!$result) {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update purchase order status: ' . $error['message']];
+    } 
+    
+    if (strtolower($newStatus) === strtolower('Completed')) {
+        // Get purchase order details
+        $details = getPurchaseOrderDetails($purchaseOrderId);
+        
+        // Update item stock for each detail
+        foreach ($details as $detail) {
+            $itemId = $detail['ITEMID'];
+            $quantity = $detail['QUANTITY'];
+            
+            $updateQuery = "UPDATE ITEM SET CURRENTSTOCK = CURRENTSTOCK + :1 WHERE ITEMID = :2";
+            $updateStmt = oci_parse($conn, $updateQuery);
+            oci_bind_by_name($updateStmt, ':1', $quantity);
+            oci_bind_by_name($updateStmt, ':2', $itemId);
+            $result = oci_execute($updateStmt);
+            oci_free_statement($updateStmt);
+
+            if (!$result) {
+                $error = oci_error($updateStmt);
+                return ['status' => false, 'message' => 'Failed to update item stock: ' . $error['message']];
+            } else {
+                return ['status' => true, 'message' => 'Purchase order status updated successfully.'];
+            }
+        }
+    }
 }
 ?>
