@@ -22,12 +22,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $result = LoginUser($email, $password);
 
-    if ($result['status'] && UserIsAdmin()) {
+    if ($result['status'] && (UserIsAdmin() OR UserIsStaff())) {
         header("Location: /frontend/admin/index.php");
-        exit();
-
-    } else if ($result['status'] && UserIsStaff()) {
-        header("Location: /frontend/staff/index.php");
         exit();
 
     } else if ($result['status'] && UserIsCustomer()) {

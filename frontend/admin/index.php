@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../backend/functions/item-functions.php';
 require_once __DIR__ . '/../../backend/functions/user-functions.php';
 require_once __DIR__ . '/../../backend/functions/vendor-functions.php';
 require_once __DIR__ . '/../../backend/functions/purchaseOrder-functions.php';
+require_once __DIR__ . '/../../backend/services/auth-helper.php';
+require_once __DIR__ . '/../../backend/functions/sale-functions.php';
 
 // List
 $lowStockItems = getItemWithStockBelow(20);
@@ -12,6 +14,8 @@ $itemStockUpdate = getAllItems('CURRENTSTOCK', 'ASC');
 $vendors = getAllVendors();
 $purchaseOrdersList = getAllPurchaseOrders();
 $latestPurchaseOrders = getLatestPurchaseOrder();
+$salesList = getAllSales();
+$salesReportList = generateSalesReportByMonth(date('Y'));
 
 $poDetailsList;
 $currPurchaseOrder;
@@ -228,7 +232,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             </form>
                             <div class="mb-3">
                                 <div class="btn-group">
-                                    <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#userModal">+ Add Staff</button>
+                                    <?php if (UserIsAdmin()): ?>
+                                        <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#userModal">+ Add Staff</button>
+                                    <?php endif; ?>
                                 </div>
 
                             </div>
@@ -489,9 +495,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             <section id="sales">
                 <div class="card p-4">
-                    <div class="row g-4">
-                        <div class="col-md-4 border-end border-secondary">
-                            <h4 class="mb-4">Manual Sale Entry</h4>
+                    <!-- Nav Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="salesListTab" data-bs-toggle="tab" data-bs-target="#salesListContent" type="button" role="tab">Sales Listing</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="manualSaleTab" data-bs-toggle="tab" data-bs-target="#manualSaleContent" type="button" role="tab">Manual Sale Entry</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="salesReportTab" data-bs-toggle="tab" data-bs-target="#salesReportContent" type="button" role="tab">Sales Reports</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="salesTabContent">
+                        <!-- Tab 1: Sales Listing -->
+                        <div class="tab-pane fade show active" id="salesListContent" role="tabpanel" style="display: block;">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Total Price</th>
+                                            <th>Customer Name</th>
+                                            <th>Managed By</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                            $salesPage = isset($_GET['salesPage']) ? max(1, (int)$_GET['salesPage']) : 1;
+                                            $salesLimit = 10;
+                                            $salesOffset = ($salesPage - 1) * $salesLimit;
+                                            $totalSales = count($salesList);
+                                            $totalSalesPages = max(1, ceil($totalSales / $salesLimit));
+                                            $paginatedSales = array_slice($salesList, $salesOffset, $salesLimit);
+                                        ?>
+                                        <?php foreach ($paginatedSales as $sale): ?>
+                                        <tr class ="sale-row" data-sales-id="<?= htmlspecialchars($sale['SALEID']) ?>">
+                                            <td><?= htmlspecialchars($sale['SALEDATETIME']) ?></td>
+                                            <td><?= htmlspecialchars($sale['TOTALPRICE']) ?></td>
+                                            <td><?= htmlspecialchars($sale['CUSTOMER_NAME']) ?></td>
+                                            <td><?= htmlspecialchars($sale['STAFF_NAME']) ?></td>
+                                            <td><button class="btn btn-link text-accent btn-sm p-0 view-sale-btn" data-sale-id="<?= htmlspecialchars($sale['SALEID']) ?>">View</button></td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav class="mt-3">
+                                <ul class="pagination">
+                                    <li class="page-item <?php echo $salesPage <= 1 ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="?salesPage=<?php echo $salesPage - 1; ?>">Previous</a>
+                                    </li>
+                                    <li class="page-item active">
+                                        <span class="page-link">Page <?php echo $salesPage; ?> of <?php echo $totalSalesPages; ?></span>
+                                    </li>
+                                    <li class="page-item <?php echo $salesPage >= $totalSalesPages ? 'disabled' : ''; ?>">
+                                        <a class="page-link" href="?salesPage=<?php echo $salesPage + 1; ?>">Next</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Manual Sale Entry -->
+                        <div class="tab-pane fade" id="manualSaleContent" role="tabpanel" style="display: none; opacity: 0; pointer-events: none;">
+                            <h5 class="mb-4">Manual Sale Entry</h5>
                             <form action="#" method="POST">
                                 <div class="mb-3">
                                     <label class="form-label small">Product ID / Search</label>
@@ -510,34 +582,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2">Clear POS Cart</button>
                             </form>
                         </div>
-                        <div class="col-md-8">
-                            <h4 class="mb-4">Generate Sales Reports</h4>
+
+                        <!-- Tab 3: Sales Reporting -->
+                        <div class="tab-pane fade" id="salesReportContent" role="tabpanel" style="display: none; opacity: 0; pointer-events: none;">
+                            <h5 class="mb-4">Generate Sales Reports</h5>
                             <div class="table-responsive">
                                 <table class="table table-dark table-striped">
                                     <thead>
                                         <tr>
-                                            <th>Invoice</th>
-                                            <th>Date</th>
-                                            <th>Amount</th>
-                                            <th>Payment Method</th>
-                                            <th>Action</th>
+                                            <th>Month</th>
+                                            <th>Total Sales</th>
+                                            <th>Total Revenue</th>
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        <?php foreach ($salesReportList as $sale): ?>
                                         <tr>
-                                            <td>#INV-001</td>
-                                            <td>16 Jan 2026</td>
-                                            <td>RM45.00</td>
-                                            <td>E-Wallet</td>
-                                            <td><button class="btn btn-link text-accent btn-sm p-0">Download PDF</button></td>
+                                            <td><?php echo $sale['MONTH']; ?></td>
+                                            <td><?php echo $sale['TOTAL_SALES']; ?></td>
+                                            <td><?php echo $sale['TOTAL_REVENUE']; ?></td>
                                         </tr>
-                                        <tr>
-                                            <td>#INV-002</td>
-                                            <td>16 Jan 2026</td>
-                                            <td>RM120.00</td>
-                                            <td>Cash</td>
-                                            <td><button class="btn btn-link text-accent btn-sm p-0">Download PDF</button></td>
-                                        </tr>
+                                        <?php endforeach; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -662,6 +727,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </div>
 </div>
 
+<!-- Sales Details Modal -->
+<div class="modal fade" id="saleDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-accent">Sale Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Sale ID</p>
+                        <p class="text-white" id="saleModalId">-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Date & Time</p>
+                        <p class="text-white" id="saleModalDateTime">-</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Customer</p>
+                        <p class="text-white" id="saleModalCustomer">-</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-secondary small">Managed By</p>
+                        <p class="text-white" id="saleModalStaff">-</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <p class="text-secondary small">Total Price</p>
+                        <p class="text-white fs-4" id="saleModalTotal">RM-</p>
+                    </div>
+                </div>
+                <hr class="border-secondary">
+                <p class="text-secondary small mb-2">Items Purchased</p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="saleModalItemsTable">
+                            <tr><td colspan="3" class="text-center text-secondary">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -743,6 +867,7 @@ document.getElementById('submitPOBtn').addEventListener('click', function() {
     document.getElementById('poForm').submit();
 });
 
+// Load PO Details in Modal
 document.querySelectorAll('.po-row').forEach(row => {
     row.addEventListener('click', () => {
         document.getElementById('modalPurchaseOrderId').value = row.dataset.poId;
@@ -835,7 +960,62 @@ document.getElementById('modalNewStatus').addEventListener('change', function() 
     form.submit();
 });
 
+// Load Sale Details in Modal
+document.querySelectorAll('.view-sale-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const saleId = this.dataset.saleId;
+        loadSaleDetails(saleId);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+        modal.show();
+    });
+});
 
+function loadSaleDetails(saleId) {
+    // Reset modal
+    document.getElementById('saleModalId').textContent = 'Loading...';
+    document.getElementById('saleModalDateTime').textContent = 'Loading...';
+    document.getElementById('saleModalCustomer').textContent = 'Loading...';
+    document.getElementById('saleModalStaff').textContent = 'Loading...';
+    document.getElementById('saleModalTotal').textContent = 'Loading...';
+    document.getElementById('saleModalItemsTable').innerHTML =
+        '<tr><td colspan="3" class="text-center text-secondary">Loading...</td></tr>';
+
+    fetch('sale-details.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            saleId: saleId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status) {
+            document.getElementById('saleModalId').textContent = data.saleId;
+            document.getElementById('saleModalDateTime').textContent = data.dateTime;
+            document.getElementById('saleModalCustomer').textContent = data.customer;
+            document.getElementById('saleModalStaff').textContent = data.staff;
+            document.getElementById('saleModalTotal').textContent = 'RM' + data.totalPrice;
+
+            let rows = '';
+            data.items.forEach(item => {
+                rows += `<tr>
+                            <td>${item.name}</td>
+                            <td>${item.quantity}</td>
+                            <td>RM${item.finalPrice}</td>
+                        </tr>`;
+            });
+
+            document.getElementById('saleModalItemsTable').innerHTML = rows || 
+                '<tr><td colspan="3" class="text-center text-secondary">No items found</td></tr>';
+        } else {
+            alert('Error loading sale details: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to load sale details');
+    });
+}
 </script>
-</body>
-</html>

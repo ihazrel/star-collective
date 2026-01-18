@@ -27,7 +27,20 @@ function createSale( $totalPrice, $customerId, $staffId) {
 function getAllSales() {
     global $conn;
 
-    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE ORDER BY SaleDateTime DESC";
+    $query = "SELECT 
+                    SALEID, 
+                    TO_CHAR(SALEDATETIME,'DD-MM-YY HH:MI:SS AM') AS SALEDATETIME,
+                    TOTALPRICE,
+                    CUSTOMERID,
+                    STAFFID,
+                    CUST.NAME AS CUSTOMER_NAME,
+                    COALESCE(STAFF.NAME, 'N/A') AS STAFF_NAME 
+                    FROM SALE 
+                    LEFT JOIN USERS CUST 
+                        ON SALE.CUSTOMERID = CUST.ID 
+                    LEFT JOIN USERS STAFF 
+                        ON SALE.STAFFID = STAFF.ID 
+                    ORDER BY SALEDATETIME DESC";
     $stmt = oci_parse($conn, $query);
     $result = oci_execute($stmt);
 
@@ -45,7 +58,7 @@ function getAllSales() {
 function getSaleById($saleId) {
     global $conn;
 
-    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE WHERE SaleID = :1";
+    $query = "SELECT SALEID, SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID FROM SALE WHERE SALEID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     $result = oci_execute($stmt);
@@ -79,7 +92,7 @@ function getLatestSaleId() {
 function editSale($saleId, $saleDateTime, $totalPrice, $customerId, $staffId) {
     global $conn;
 
-    $query = "UPDATE SALE SET SaleDateTime = :1, TotalPrice = :2, CustomerID = :3, StaffID = :4 WHERE SaleID = :5";
+    $query = "UPDATE SALE SET SALEDATETIME = :1, TOTALPRICE = :2, CUSTOMERID = :3, STAFFID = :4 WHERE SALEID = :5";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleDateTime);
     oci_bind_by_name($stmt, ':2', $totalPrice);
@@ -102,7 +115,7 @@ function editSale($saleId, $saleDateTime, $totalPrice, $customerId, $staffId) {
 function deleteSale($saleId) {
     global $conn;
 
-    $query = "DELETE FROM SALE WHERE SaleID = :1";
+    $query = "DELETE FROM SALE WHERE SALEID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
 
@@ -163,5 +176,31 @@ function createSalesFromCart($customerId, $staffId) {
     } else {
         return ['status' => false, 'message' => 'Failed to create sale from cart.'];
     }
+}
+
+function generateSalesReportByMonth($year) {
+    global $conn;
+
+        $query = "SELECT 
+                        TO_CHAR(SALEDATETIME, 'YYYY-Mon') AS MONTH,
+                        COUNT(*) AS TOTAL_SALES,
+                        SUM(TOTALPRICE) AS TOTAL_REVENUE
+                FROM SALE 
+                WHERE EXTRACT(YEAR FROM SALEDATETIME) = :1 
+                GROUP BY TO_CHAR(SALEDATETIME, 'YYYY-Mon')
+                ORDER BY MONTH ASC";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $year);
+    $result = oci_execute($stmt);
+
+    $sales = [];
+    if ($result) {
+        while ($row = oci_fetch_assoc($stmt)) {
+            $sales[] = $row;
+        }
+    }
+    oci_free_statement($stmt);
+
+    return $sales;
 }
 ?>
