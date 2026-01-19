@@ -1,8 +1,6 @@
 <?php 
 include('includes/header.php'); 
 
-session_start();
-
 require_once __DIR__ . '/../backend/services/authentication.php';
 require_once __DIR__ . '/../backend/services/auth-helper.php';
 

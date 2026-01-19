@@ -302,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <section id="users" class="mb-5">
                 <div class="card p-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="mb-0">User Management (Staff & Customers)</h4>
+                        <h4 class="mb-0">Staff Management</h4>
                         <div class="d-flex gap-3 align-items-end">
                             <form method="POST" class="mb-3" id="roleFilterForm">
                                 <label class="form-label small text-secondary">Select User Type</label>

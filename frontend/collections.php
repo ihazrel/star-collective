@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $quantity = (int)$_POST['quantity'] ?? 1;
         
         if (empty($_SESSION['user_id'])) {
-            echo "Error: User ID is empty\n";
+            $errorMessage = 'You\'re required to log in to add items to the cart.';
         } else {
             createCartItem($_SESSION['user_id'], $product_id, $quantity);
             refreshCartData();
