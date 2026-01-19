@@ -200,7 +200,7 @@ function createSalesFromCart($customerId, $staffId, $paymentMethod = '') {
 function generateSalesReportByMonth($year) {
     global $conn;
 
-        $query = "SELECT 
+    $query = "SELECT 
                         TO_CHAR(SALEDATETIME, 'YYYY-Mon') AS MONTH,
                         COUNT(*) AS TOTAL_SALES,
                         SUM(TOTALPRICE) AS TOTAL_REVENUE
