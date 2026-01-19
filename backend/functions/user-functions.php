@@ -24,12 +24,20 @@ function createUser($name, $email, $phone, $password, $role) {
     oci_bind_by_name($stmt, ':role', $role);
     $result = oci_execute($stmt);
 
+    $lastInsertId = getLatestUserId();
+
     // If role is customer, also insert into customer table
     if (strtolower($role) === 'customer') {
         $customerQuery = "INSERT INTO customer (USER_ID) VALUES (:userId)";
         $customerStmt = oci_parse($conn, $customerQuery);
-        oci_bind_by_name($customerStmt, ':userId', $userId);
+        oci_bind_by_name($customerStmt, ':userId', $lastInsertId);
         oci_execute($customerStmt);
+    } elseif (strtolower($role) === 'staff' || strtolower($role) === 'admin') {
+        // If role is staff or admin, also insert into staff table
+        $staffQuery = "INSERT INTO staff (StaffID) VALUES (:staffId)";
+        $staffStmt = oci_parse($conn, $staffQuery);
+        oci_bind_by_name($staffStmt, ':staffId', $lastInsertId);
+        oci_execute($staffStmt);
     }
 
     if ($result) {
@@ -82,6 +90,17 @@ function getUserByEmail($email) {
     oci_execute($stmt);
 
     return oci_fetch_assoc($stmt);
+}
+
+function getLatestUserId() {
+    global $conn;
+
+    $query = "SELECT ID FROM users ORDER BY ID DESC FETCH FIRST 1 ROWS ONLY";
+    $stmt = oci_parse($conn, $query);
+    oci_execute($stmt);
+
+    $row = oci_fetch_assoc($stmt);
+    return $row ? $row['ID'] : null;
 }
 
 function editUser($userId, $name, $email, $phone) {

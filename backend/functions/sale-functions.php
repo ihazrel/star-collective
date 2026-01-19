@@ -3,14 +3,15 @@ require_once __DIR__ . '/../config/db_connect.php';
 require_once __DIR__ . '/cartItem-functions.php';
 require_once __DIR__ . '/saleDetail-functions.php';
 
-function createSale( $totalPrice, $customerId, $staffId) {
+function createSale( $totalPrice, $customerId, $staffId, $paymentMethod = '') {
     global $conn;
     
-    $query = "INSERT INTO SALE (SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID) VALUES (SYSDATE, :1, :2, :3)";
+    $query = "INSERT INTO SALE (SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID, PAYMENTMETHOD) VALUES (SYSDATE, :1, :2, :3, :4)";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $totalPrice);
     oci_bind_by_name($stmt, ':2', $customerId);
     oci_bind_by_name($stmt, ':3', $staffId);
+    oci_bind_by_name($stmt, ':4', $paymentMethod);
 
     $result = oci_execute($stmt);
 
@@ -58,7 +59,7 @@ function getAllSales() {
 function getSaleById($saleId) {
     global $conn;
 
-    $query = "SELECT SALEID, SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID FROM SALE WHERE SALEID = :1";
+    $query = "SELECT SALEID, TO_CHAR(SALEDATETIME,'DD-MM-YY HH:MI:SS AM') AS SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID FROM SALE WHERE SALEID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     $result = oci_execute($stmt);
@@ -87,6 +88,24 @@ function getLatestSaleId() {
     oci_free_statement($stmt);
 
     return $latestSaleId;
+}
+
+function getPaymentMethodBySaleId($saleId) {
+    global $conn;
+
+    $query = "SELECT PAYMENTMETHOD FROM SALE WHERE SALEID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $saleId);
+    $result = oci_execute($stmt);
+
+    $paymentMethod = null;
+    if ($result) {
+        $row = oci_fetch_assoc($stmt);
+        $paymentMethod = $row['PAYMENTMETHOD'];
+    }
+    oci_free_statement($stmt);
+
+    return $paymentMethod;
 }
 
 function editSale($saleId, $saleDateTime, $totalPrice, $customerId, $staffId) {
@@ -135,7 +154,7 @@ function deleteSale($saleId) {
 function getSalesByCustomer($customerId) {
     global $conn;
 
-    $query = "SELECT SaleID, SaleDateTime, TotalPrice, CustomerID, StaffID FROM SALE WHERE CustomerID = :1 ORDER BY SaleDateTime DESC";
+    $query = "SELECT SALEID, TO_CHAR(SALEDATETIME,'DD-MM-YY HH:MI:SS AM') AS SALEDATETIME, TOTALPRICE, CUSTOMERID, STAFFID, CUST.NAME AS CUSTOMER_NAME, STAFF.NAME AS STAFF_NAME, PAYMENTMETHOD FROM SALE LEFT JOIN USERS CUST ON SALE.CUSTOMERID = CUST.ID LEFT JOIN USERS STAFF ON SALE.STAFFID = STAFF.ID WHERE CUSTOMERID = :1 ORDER BY SALEDATETIME DESC";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $customerId);
     $result = oci_execute($stmt);
@@ -151,7 +170,7 @@ function getSalesByCustomer($customerId) {
     return $sales;
 }
 
-function createSalesFromCart($customerId, $staffId) {
+function createSalesFromCart($customerId, $staffId, $paymentMethod = '') {
     global $conn;
 
     $cartItems = getCartItemsByCustomer($customerId);
@@ -161,7 +180,7 @@ function createSalesFromCart($customerId, $staffId) {
         $totalPrice += $item['TOTAL_BY_ITEM'];
     }
 
-    createSale($totalPrice, $customerId, $staffId);
+    createSale($totalPrice, $customerId, $staffId, $paymentMethod);
     $saleId = getLatestSaleId();
 
     foreach ($cartItems as $item) {
@@ -202,5 +221,24 @@ function generateSalesReportByMonth($year) {
     oci_free_statement($stmt);
 
     return $sales;
+}
+
+function calculateTotalSalesThisWeek() {
+    global $conn;
+
+    $query = "SELECT SUM(TOTALPRICE) AS TOTAL_SALES_THIS_WEEK 
+              FROM SALE 
+              WHERE SALEDATETIME >= TRUNC(SYSDATE, 'IW')";
+    $stmt = oci_parse($conn, $query);
+    $result = oci_execute($stmt);
+
+    $totalSales = 0;
+    if ($result) {
+        $row = oci_fetch_assoc($stmt);
+        $totalSales = $row['TOTAL_SALES_THIS_WEEK'] ?? 0;
+    }
+    oci_free_statement($stmt);
+
+    return $totalSales;
 }
 ?>

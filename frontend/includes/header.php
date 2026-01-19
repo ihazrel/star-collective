@@ -76,7 +76,7 @@ if (session_status() === PHP_SESSION_NONE) {
                   </li>
                   <?php if (isset($_SESSION['user_name']) && !empty($_SESSION['user_name'])): ?>
                   <li class="nav-item user-welcome">
-                    <a class="nav-link" href="#">Hello, <?php echo htmlspecialchars($_SESSION['user_name']); ?></a>
+                    <a class="nav-link" href="invoice_list.php">Hello, <?php echo htmlspecialchars($_SESSION['user_name']); ?></a>
                     <div class="circle"></div>
                   </li>
                   <li class="nav-item">

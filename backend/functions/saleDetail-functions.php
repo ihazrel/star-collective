@@ -26,7 +26,7 @@ function createSaleDetails($saleId, $itemId, $quantity, $finalPrice) {
 function getSaleDetailsBySaleId($saleId) {
     global $conn;
 
-    $query = "SELECT SaleDetailID, SaleID, ItemID, Quantity, FinalPrice FROM SALEDETAIL WHERE SaleID = :1";
+    $query = "SELECT SaleDetailID, SaleID, ITEM.ItemID AS ITEMID, ITEM.NAME AS ITEMNAME, Quantity, FinalPrice, ITEM.PRICE AS UNITPRICE FROM SALEDETAIL LEFT JOIN ITEM ON SALEDETAIL.ITEMID = ITEM.ITEMID WHERE SaleID = :1";
     $stmt = oci_parse($conn, $query);
     oci_bind_by_name($stmt, ':1', $saleId);
     $result = oci_execute($stmt);

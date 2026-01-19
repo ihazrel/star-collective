@@ -26,7 +26,21 @@ function createStaff($position, $salary, $dateHired, $managedBy) {
 function getAllStaff() {
     global $conn;
 
-    $query = "SELECT StaffID, Position, Salary, DateHired, ManagedBy FROM staff";
+    $query = "SELECT  
+                    STAFF.ID AS ID,
+                    STAFF.NAME AS STAFFNAME,
+                    STAFF.EMAIL AS EMAIL,
+                    STAFF.PHONENUMBER AS PHONENUMBER,
+                    Position,
+                    Salary,
+                    DateHired,
+                    COALESCE(MGR.NAME, 'N/A') AS MANAGEDBYNAME,
+                    STAFF.ROLE AS ROLE
+                FROM staff 
+                LEFT JOIN USERS STAFF ON staff.StaffID = STAFF.ID 
+                LEFT JOIN USERS MGR ON staff.MANAGEDBY = MGR.ID
+                WHERE LOWER(STAFF.ROLE) = 'staff' OR LOWER(STAFF.ROLE) = 'admin'
+                ORDER BY STAFFNAME ASC";
     $stmt = oci_parse($conn, $query);
     $result = oci_execute($stmt);
 
@@ -78,6 +92,58 @@ function editStaff($staffId, $position, $salary, $dateHired, $managedBy) {
         $error = oci_error($stmt);
         oci_free_statement($stmt);
         return ['status' => false, 'message' => 'Failed to update staff: ' . $error['message']];
+    }
+}
+
+function updateStaffManager($staffId, $newManagerId) {
+    global $conn;
+
+    $query = "UPDATE staff SET ManagedBy = :1 WHERE StaffID = :2";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $newManagerId);
+    oci_bind_by_name($stmt, ':2', $staffId);
+
+    $result = oci_execute($stmt);
+
+    if ($result) {
+        oci_free_statement($stmt);
+        return ['status' => true, 'message' => 'Manager updated successfully.'];
+    } else {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to update manager: ' . $error['message']];
+    }
+}
+
+function deleteStaff($staffId) {
+    global $conn;
+
+    $query = "DELETE FROM staff WHERE StaffID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $staffId);
+
+    $result = oci_execute($stmt);
+
+    
+    if (!$result) {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to delete staff: ' . $error['message']];
+    }
+
+    $query = "DELETE FROM users WHERE ID = :1";
+    $stmt = oci_parse($conn, $query);
+    oci_bind_by_name($stmt, ':1', $staffId);
+
+    $result = oci_execute($stmt);
+
+    if ($result) {
+        oci_free_statement($stmt);
+        return ['status' => true, 'message' => 'Staff deleted successfully.'];
+    } else {
+        $error = oci_error($stmt);
+        oci_free_statement($stmt);
+        return ['status' => false, 'message' => 'Failed to delete staff user: ' . $error['message']];
     }
 }
 ?>

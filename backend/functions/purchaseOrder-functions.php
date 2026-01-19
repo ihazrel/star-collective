@@ -270,4 +270,17 @@ function updatePurchaseOrderStatus($purchaseOrderId, $newStatus) {
         return ['status' => true, 'message' => 'Purchase order status updated successfully.'];
     }
 }
+
+function getPendingPurchaseOrdersCount() {
+    global $conn;
+
+    $query = "SELECT COUNT(*) AS PENDING_COUNT FROM PURCHASEORDER WHERE STATUS = 'Pending'";
+    $stmt = oci_parse($conn, $query);
+    oci_execute($stmt);
+
+    $row = oci_fetch_assoc($stmt);
+    oci_free_statement($stmt);
+
+    return $row['PENDING_COUNT'] ?? 0;
+}
 ?>

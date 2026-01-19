@@ -6,31 +6,40 @@ require_once __DIR__ . '/../../backend/functions/vendor-functions.php';
 require_once __DIR__ . '/../../backend/functions/purchaseOrder-functions.php';
 require_once __DIR__ . '/../../backend/services/auth-helper.php';
 require_once __DIR__ . '/../../backend/functions/sale-functions.php';
+require_once __DIR__ . '/../../backend/functions/staff-functions.php';
 
 // List
 $lowStockItems = getItemWithStockBelow(20);
-$users = getAllStaffs();
+$users = getAllStaff();
 $itemStockUpdate = getAllItems('CURRENTSTOCK', 'ASC');
 $vendors = getAllVendors();
 $purchaseOrdersList = getAllPurchaseOrders();
 $latestPurchaseOrders = getLatestPurchaseOrder();
 $salesList = getAllSales();
 $salesReportList = generateSalesReportByMonth(date('Y'));
+$staffListForManager = getAllStaff();
+$customers = getAllUsers('customer');
 
 $poDetailsList;
 $currPurchaseOrder;
+
+// Logged-in staff context
+$loggedInUserId = $_SESSION['user_id'] ?? null;
+$loggedInUser = $loggedInUserId ? getUserById($loggedInUserId) : null;
+$loggedInUserName = $_SESSION['user_name']  ?? ($loggedInUser['NAME'] ?? 'N/A');
 
 
 $roleFilter = isset($_POST['roleFilter']) ? trim($_POST['roleFilter']) : '';
 $activeUsers = $roleFilter ? filterUsersByRole($roleFilter) : $users;
 
 function refresh_data_users() {
-    global $users, $activeUsers, $roleFilter;
+    global $users, $activeUsers, $roleFilter, $staffListForManager;
 
     $roleFilter = isset($_POST['roleFilter']) ? trim($_POST['roleFilter']) : '';
-    $users = getAllUsers();
+    $users = getAllStaff();
     $activeUsers = $roleFilter ? filterUsersByRole($roleFilter) : $users;
-}
+    $staffListForManager = getAllStaff();
+    }
 
 function refresh_data_items() {
     global $itemStockUpdate, $lowStockItems;
@@ -126,6 +135,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $errorMessage = 'Update function did not return expected result.';
         }
 
+    } elseif ($_POST['action'] === 'updateStaffMgr') {
+
+        $staffId = $_POST['staffId'] ?? '';
+        $newManagerId = $_POST['newManager'] ?? '';
+
+        $result = updateStaffManager($staffId, $newManagerId);
+        refresh_data_users();
+
+        if ($result['status']) {
+            $_SESSION['flash_message'] = 'Staff manager has been updated successfully.'; header('Location: ' . $_SERVER['PHP_SELF']);
+            exit;
+        } else {
+            $errorMessage = $result['message'];
+        }
+    } elseif ($_POST['action'] === 'deleteStaff') {
+
+        $staffId = $_POST['staffId'] ?? '';
+
+        $result = deleteStaff($staffId);
+        refresh_data_users();
+
+        if ($result['status']) {
+            $_SESSION['flash_message'] = 'Staff has been deleted successfully.'; header('Location: ' . $_SERVER['PHP_SELF']);
+            exit;
+        } else {
+            $errorMessage = $result['message'];
+        }
+    } elseif ($_POST['action'] === 'createManualSale') {
+        // Manual sale submission: compute totals server-side for safety
+        $paymentMethod = $_POST['paymentMethod'] ?? '';
+        $customerId = $_POST['customerId'] ?? null;
+        if ($customerId === '' || strtolower($customerId) === 'null') { $customerId = null; }
+        $saleItems = $_POST['saleItems'] ?? [];
+
+        if (!$loggedInUserId) {
+            $errorMessage = 'You must be logged in to create a sale.';
+        } elseif (empty($saleItems)) {
+            $errorMessage = 'Please add at least one item to the sale.';
+        } else {
+            $staffId = $loggedInUserId;
+
+            // Calculate total and create sale
+            $computedTotal = 0;
+            foreach ($saleItems as $entry) {
+                $itemId = $entry['id'] ?? null;
+                $qty = (int)($entry['quantity'] ?? 0);
+                if (!$itemId || $qty <= 0) { continue; }
+                $item = getItemById($itemId);
+                if (!$item) { continue; }
+                $lineTotal = ((float)$item['PRICE']) * $qty;
+                $computedTotal += $lineTotal;
+            }
+
+            $result = createSale($computedTotal, $customerId, $staffId, $paymentMethod);
+            if (!($result['status'] ?? false)) {
+                $errorMessage = $result['message'] ?? 'Failed to create sale.';
+            } else {
+                $saleId = getLatestSaleId();
+                // Create sale details and update stock
+                foreach ($saleItems as $entry) {
+                    $itemId = $entry['id'] ?? null;
+                    $qty = (int)($entry['quantity'] ?? 0);
+                    if (!$itemId || $qty <= 0) { continue; }
+                    $item = getItemById($itemId);
+                    if (!$item) { continue; }
+                    $lineTotal = ((float)$item['PRICE']) * $qty;
+                    createSaleDetails($saleId, $itemId, $qty, $lineTotal);
+                    updateStock($itemId, -$qty);
+                }
+                $_SESSION['flash_message'] = 'Sale has been recorded successfully.'; header('Location: ' . $_SERVER['PHP_SELF']);
+                exit;
+            }
+        }
     }
 }
 ?>
@@ -199,8 +281,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     </div>
                     <div class="col-md-4">
                         <div class="card stat-card p-3">
-                            <h6 class="text-secondary small text-uppercase">Processed Sales (Today)</h6>
-                            <h3 class="text-accent">RM3,450.67</h3>
+                            <h6 class="text-secondary small text-uppercase">Processed Sales (This Week)</h6>
+                            <h3 class="text-accent">RM<?php echo number_format(calculateTotalSalesThisWeek(), 2); ?></h3>
                             <div class="progress mt-2" style="height: 4px; background-color: #333;">
                                 <div class="progress-bar bg-accent" style="width: 45%"></div>
                             </div>
@@ -209,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div class="col-md-4">
                         <div class="card stat-card p-3">
                             <h6 class="text-secondary small text-uppercase">Pending Orders</h6>
-                            <h3>28</h3>
+                            <h3><?php echo getPendingPurchaseOrdersCount(); ?></h3>
                             <small class="text-secondary">Awaiting packing</small>
                         </div>
                     </div>
@@ -248,7 +330,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     <th>No</th>
                                     <th>User Info</th>
                                     <th>Type</th>
+                                    <th>Manager</th>
+                                    <?php if (UserIsAdmin()): ?>
                                     <th>Actions</th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -266,7 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <tr>
                                     <td><?= $usersOffset + (++$i) ?></td>
                                     <td>
-                                        <strong><?php echo htmlspecialchars($user['NAME']); ?></strong><br>
+                                        <strong><?php echo htmlspecialchars($user['STAFFNAME']); ?></strong><br>
                                         <small class="text-secondary">Email: <?php echo htmlspecialchars($user['EMAIL']); ?></small><br>
                                     </td>
                                     <td>
@@ -281,7 +366,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         ?>
                                         <span class="badge <?php echo $roleClass; ?>"><?php echo htmlspecialchars($roleLabel); ?></span>
                                     </td>
-                                    <td><small>Full (Manager)</small></td>
+                                    <td><?php echo htmlspecialchars($user['MANAGEDBYNAME']); ?></td>
+
+                                    <?php if (UserIsAdmin()): ?>
+                                    <td class="w-25">
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <form method="POST" id="updateStaffManager" style="flex: 1;">
+                                                <input type="hidden" name="action" value="updateStaffMgr">
+                                                <input type="hidden" name="staffId" id="staffId" value="<?php echo htmlspecialchars($user['ID']); ?>">
+
+                                                <select class="form-select form-select-sm bg-dark"
+                                                        name="newManager"
+                                                        id="newManager">
+                                                    <option value="" disabled selected>Change Manager</option>
+                                                    <?php foreach ($staffListForManager as $manager): ?>
+                                                        <option value="<?php echo htmlspecialchars($manager['ID']); ?>"
+                                                            <?php if ($user['MANAGEDBYNAME'] === $manager['ID']) echo 'selected'; ?>>
+                                                            <?php echo htmlspecialchars($manager['STAFFNAME']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-staff-btn" data-staff-id="<?php echo htmlspecialchars($user['ID']); ?>" title="Delete Staff">
+                                                <i class="bi bi-trash"></i> ✕
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <?php endif; ?>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -337,7 +448,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         <tr <?php if ($item['CURRENTSTOCK'] < 20) echo 'class="table-danger"'; ?>>
                                         <td><?php echo htmlspecialchars($item['NAME']); ?></td>
                                         <td><?php echo htmlspecialchars($item['CURRENTSTOCK']); ?> Units</td>
-                                        <td><span class="<?php if ($item['CURRENTSTOCK'] < 20) { echo 'text-danger'; } else { echo 'text-success'; } ?> small"><?php if ($item['CURRENTSTOCK'] < 20) { echo 'LOW STOCK'; } else { echo 'Healthy'; } ?></span></td>
+                                        <td><span class="<?php if ($item['CURRENTSTOCK'] < 20) { echo 'text-danger'; } elseif ($item['CURRENTSTOCK'] < 40){ echo 'text-warning'; } else { echo 'text-success'; } ?> small"><?php if ($item['CURRENTSTOCK'] < 20) { echo 'LOW STOCK'; } elseif ($item['CURRENTSTOCK'] < 40) { echo 'MEDIUM STOCK'; } else { echo 'Healthy'; } ?></span></td>
                                         <td><input type="number" min="0" class="form-control form-control-sm w-50" name="quantity" value="0"></td>
                                         <td><button class="form-control btn btn-success btn-sm w-40" type="submit">Update Stock Table</button></td>
                                         </tr>
@@ -519,7 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                             <th>Date</th>
                                             <th>Total Price</th>
                                             <th>Customer Name</th>
-                                            <th>Managed By</th>
+                                            <th>Staff in Charge</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -564,22 +675,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <!-- Tab 2: Manual Sale Entry -->
                         <div class="tab-pane fade" id="manualSaleContent" role="tabpanel" style="display: none; opacity: 0; pointer-events: none;">
                             <h5 class="mb-4">Manual Sale Entry</h5>
-                            <form action="#" method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label small">Product ID / Search</label>
-                                    <input type="text" class="form-control" placeholder="SKU-123">
+                            <form action="#" method="POST" id="manualSaleForm">
+                                <input type="hidden" name="action" value="createManualSale">
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-secondary">Staff Managing</label>
+                                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($_SESSION['user_name'] ?? ''); ?>" readonly>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-secondary">Customer</label>
+                                        <select class="form-select" id="customerId" name="customerId">
+                                            <option value="">Walk-in Customer</option>
+                                            <?php foreach ($customers as $cust): ?>
+                                                <option value="<?php echo htmlspecialchars($cust['ID']); ?>">
+                                                    <?php echo htmlspecialchars($cust['NAME']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-secondary">Payment Type</label>
+                                        <select class="form-select" id="paymentMethod" name="paymentMethod" required>
+                                            <option value="cash">Cash</option>
+                                            <option value="credit_card">Credit Card</option>
+                                            <option value="debit_card">Debit Card</option>
+                                            <option value="fpx">FPX Online Transfer</option>
+                                            <option value="ewallet">E-wallet</option>
+                                        </select>
+                                    </div>
                                 </div>
+
                                 <div class="mb-3">
-                                    <label class="form-label small">Payment Type</label>
-                                    <select class="form-select">
-                                        <option>Cash</option>
-                                        <option>Credit Card</option>
-                                        <option>FPX Online Transfer</option>
-                                        <option>E-Wallet</option>
-                                    </select>
+                                    <label class="form-label small text-secondary">Item & Quantity</label>
+                                    <div class="input-group mb-2">
+                                        <select class="form-select" id="saleItemSelect">
+                                            <option value="">Select Item</option>
+                                            <?php foreach ($itemStockUpdate as $item): ?>
+                                                <option value="<?php echo htmlspecialchars($item['ITEMID']); ?>" data-price="<?php echo htmlspecialchars($item['PRICE']); ?>">
+                                                    <?php echo htmlspecialchars($item['NAME']); ?> (RM<?php echo number_format($item['PRICE'],2); ?>)
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <input type="number" class="form-control" id="saleItemQty" min="1" value="1" placeholder="Qty" required>
+                                        <button class="btn btn-accent" type="button" id="addSaleItemBtn">Add</button>
+                                    </div>
+                                    <div id="saleItems" class="bg-secondary bg-opacity-10 rounded p-2">
+                                        <!-- Items will be appended here -->
+                                    </div>
                                 </div>
-                                <button type="button" class="btn btn-accent btn-sm w-100">Record Sale Detail</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2">Clear POS Cart</button>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-secondary">Total</span>
+                                    <strong class="fs-5">RM <span id="saleTotal">0.00</span></strong>
+                                </div>
+
+                                <button type="button" class="btn btn-accent w-100" id="submitSaleBtn">Record Sale</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2" id="clearSaleBtn">Clear POS Cart</button>
                             </form>
                         </div>
 
@@ -786,8 +938,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
+`<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+`<script>
 document.addEventListener('DOMContentLoaded', function() {
     const roleSelect = document.getElementById('roleFilterSelect');
     const roleForm = document.getElementById('roleFilterForm');
@@ -960,6 +1112,83 @@ document.getElementById('modalNewStatus').addEventListener('change', function() 
     form.submit();
 });
 
+// Update Staff Manager Selection
+document.querySelectorAll('#newManager').forEach(select => {
+    select.addEventListener('change', function() {
+        const managerId = this.value;
+        const staffId = this.closest('form').querySelector('input[name="staffId"]').value;
+        const staffName = this.closest('tr').querySelector('strong').textContent;
+        const managerName = this.options[this.selectedIndex].text;
+
+        if (!managerId) {
+            return; // Empty value, do nothing
+        }
+
+        if (!confirm(`Change manager for ${staffName} to ${managerName}?`)) {
+            this.value = ''; // Reset the selection
+            return;
+        }
+
+        // Create a new form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '';
+
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'updateStaffMgr';
+        form.appendChild(actionInput);
+
+        const staffIdInput = document.createElement('input');
+        staffIdInput.type = 'hidden';
+        staffIdInput.name = 'staffId';
+        staffIdInput.value = staffId;
+        form.appendChild(staffIdInput);
+
+        const managerIdInput = document.createElement('input');
+        managerIdInput.type = 'hidden';
+        managerIdInput.name = 'newManager';
+        managerIdInput.value = managerId;
+        form.appendChild(managerIdInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    });
+});
+
+// Delete Staff Member
+document.querySelectorAll('.delete-staff-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const staffId = this.dataset.staffId;
+        const staffName = this.closest('tr').querySelector('strong').textContent;
+
+        if (!confirm(`Are you sure you want to delete ${staffName}?`)) {
+            return;
+        }
+
+        // Create a new form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '';
+
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'deleteStaff';
+        form.appendChild(actionInput);
+
+        const staffIdInput = document.createElement('input');
+        staffIdInput.type = 'hidden';
+        staffIdInput.name = 'staffId';
+        staffIdInput.value = staffId;
+        form.appendChild(staffIdInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    });
+});
+
 // Load Sale Details in Modal
 document.querySelectorAll('.view-sale-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -1018,4 +1247,93 @@ function loadSaleDetails(saleId) {
         alert('Failed to load sale details');
     });
 }
+
+// Manual Sale: add items, auto total, submit
+document.addEventListener('DOMContentLoaded', function() {
+    const saleItemsContainer = document.getElementById('saleItems');
+    const saleItemSelect = document.getElementById('saleItemSelect');
+    const saleItemQty = document.getElementById('saleItemQty');
+    const addSaleItemBtn = document.getElementById('addSaleItemBtn');
+    const saleTotalEl = document.getElementById('saleTotal');
+    const submitSaleBtn = document.getElementById('submitSaleBtn');
+    const clearSaleBtn = document.getElementById('clearSaleBtn');
+    const manualSaleForm = document.getElementById('manualSaleForm');
+
+    if (!saleItemsContainer) return;
+
+    function recalcTotal() {
+        let total = 0;
+        saleItemsContainer.querySelectorAll('.sale-item-row').forEach(row => {
+            const qty = parseInt(row.dataset.qty, 10) || 0;
+            const price = parseFloat(row.dataset.price) || 0;
+            total += qty * price;
+            const lineEl = row.querySelector('.sale-line-total');
+            if (lineEl) lineEl.textContent = (qty * price).toFixed(2);
+        });
+        saleTotalEl.textContent = total.toFixed(2);
+    }
+
+    addSaleItemBtn?.addEventListener('click', function() {
+        const itemId = saleItemSelect.value;
+        const itemText = saleItemSelect.options[saleItemSelect.selectedIndex]?.text || '';
+        const price = parseFloat(saleItemSelect.options[saleItemSelect.selectedIndex]?.dataset.price || '0');
+        const qty = parseInt(saleItemQty.value, 10) || 0;
+        if (!itemId || qty <= 0) return;
+
+        const row = document.createElement('div');
+        row.className = 'input-group input-group-sm mb-2 sale-item-row';
+        row.dataset.id = itemId;
+        row.dataset.qty = String(qty);
+        row.dataset.price = String(price);
+        row.innerHTML = `
+            <span class="input-group-text bg-transparent border-secondary text-white">${itemText}</span>
+            <span class="input-group-text bg-transparent border-secondary text-white">Qty: ${qty}</span>
+            <span class="input-group-text bg-transparent border-secondary text-white">RM <span class="sale-line-total">0.00</span></span>
+            <button class="btn btn-outline-danger btn-sm" type="button">−</button>
+        `;
+        row.querySelector('button').addEventListener('click', () => { row.remove(); recalcTotal(); });
+        saleItemsContainer.appendChild(row);
+        recalcTotal();
+    });
+
+    clearSaleBtn?.addEventListener('click', function() {
+        saleItemsContainer.innerHTML = '';
+        recalcTotal();
+    });
+
+    submitSaleBtn?.addEventListener('click', function() {
+        const rows = saleItemsContainer.querySelectorAll('.sale-item-row');
+        if (rows.length === 0) {
+            alert('Please add items to the sale');
+            return;
+        }
+
+        // Remove previous dynamic inputs
+        manualSaleForm.querySelectorAll('.dynamic-sale-input').forEach(el => el.remove());
+
+        // Build inputs for items
+        let index = 0;
+        rows.forEach(row => {
+            const id = row.dataset.id;
+            const qty = row.dataset.qty;
+            const idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = `saleItems[${index}][id]`;
+            idInput.value = id;
+            idInput.className = 'dynamic-sale-input';
+            manualSaleForm.appendChild(idInput);
+
+            const qtyInput = document.createElement('input');
+            qtyInput.type = 'hidden';
+            qtyInput.name = `saleItems[${index}][quantity]`;
+            qtyInput.value = qty;
+            qtyInput.className = 'dynamic-sale-input';
+            manualSaleForm.appendChild(qtyInput);
+
+            index++;
+        });
+
+        manualSaleForm.submit();
+    });
+});
 </script>

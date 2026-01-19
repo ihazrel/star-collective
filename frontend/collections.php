@@ -41,8 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         $customerId = $_SESSION['user_id'] ?? 0;
         $staffId = null; // Assuming no staff is involved in this frontend operation
+        $paymentMethod = $_POST['payment_type'] ?? '';
+        $shippingAddress = $_POST['shipping_address'] ?? '';
          
-        $result = createSalesFromCart($customerId, $staffId);
+        $result = createSalesFromCart($customerId, $staffId, $paymentMethod);
 
         if (isset($result['status']) && $result['status']) {
             $_SESSION['flash_message'] = "Order confirmed successfully.";
@@ -180,6 +182,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <div class="cart-total" style="color: #000;">Total: $<?= number_format($cart[0]['TOTAL_PRICE'] ?? 0, 2) ?></div>
                     <form method="POST">
                         <input type="hidden" name="action" value="confirm">
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                            <label for="payment_type" style="display: block; color: #000; margin-bottom: 10px; font-weight: bold;">Payment Method:</label>
+                            <select name="payment_type" id="payment_type" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
+                                <option value="">Select Payment Method</option>
+                                <option value="cash">Cash</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="fpx">FPX Online Transfer</option>
+                                <option value="ewallet">E-wallet</option>
+                            </select>
+                            
+                            <label for="shipping_address" style="display: block; color: #000; margin-bottom: 10px; font-weight: bold;">Shipping Address:</label>
+                            <textarea name="shipping_address" id="shipping_address" required placeholder="Enter your shipping address" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; resize: vertical;"></textarea>
+                        </div>
                         <button type="submit" class="confirm-btn">✅ Confirm Order</button>
                     </form>
                 <?php endif; ?>
